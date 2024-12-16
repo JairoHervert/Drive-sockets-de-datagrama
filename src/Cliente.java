@@ -5,6 +5,8 @@ import java.net.*;
 
 public class Cliente {
    private String usuario;                      // Nombre de usuario
+   //private String directorioActualReal = System.getProperty("user.dir");
+   private String directorioActualUI = "";
    private int puertoServidor = 12345;          // Puerto por defecto del servidor
    private InetAddress direccionServidor;       // Dirección IP del servidor
    
@@ -44,6 +46,8 @@ public class Cliente {
       // solicitar al servidor que cree una carpeta con el nombre del usuario
       solicitarCarpetaPersonal(usuario);
       
+      //directorioActualReal += "/" + usuario;
+      directorioActualUI = usuario;
       System.out.println("Bienvenido " + usuario + "!");
       return 0;
    }
@@ -51,12 +55,18 @@ public class Cliente {
    private void mostrarMenu() throws IOException {
       while (true) {
          System.out.println("\n\u001B[35m--- Menú Principal ---\u001B[0m");
-         System.out.println("1. Subir archivo");
-         System.out.println("2. Descargar archivo");
-         System.out.println("3. Crear carpeta");
-         System.out.println("4. Ver archivos y carpetas");
-         System.out.println("5. Eliminar archivo o carpeta");
-         System.out.println("6. Salir");
+         //System.out.println("Directorio actual real: " + directorioActualReal);
+         System.out.println("Directorio actual UI: " + "\u001B[36mDrive/" + directorioActualUI + "/\u001B[0m");
+         System.out.println("\u001B[36m1.\u001B[0m Subir archivo");
+         System.out.println("\u001B[36m2.\u001B[0m Descargar archivo");
+         System.out.println("\u001B[36m3.\u001B[0m Crear carpeta");
+         System.out.println("\u001B[36m4.\u001B[0m Ver archivos y carpetas");
+         System.out.println("\u001B[36m5.\u001B[0m Abrir archivo o carpeta");
+         System.out.println("\u001B[36m6.\u001B[0m Eliminar archivo o carpeta");
+         System.out.println("\u001B[36m7.\u001B[0m Renombrar archivo o carpeta");
+         System.out.println("\u001B[36m8.\u001B[0m Mover archivo o carpeta");
+         System.out.println("\u001B[36m9.\u001B[0m Retroceder directorio");
+         System.out.println("\u001B[36m10.\u001B[0m Salir");
          System.out.print("Selecciona una opción: ");
          
          String opcion = inputText.readLine();
@@ -72,19 +82,28 @@ public class Cliente {
                System.out.println("crearCarpeta");
                break;
             case "4":
-               listarArchivosYCarpetas();
+               listarArchivosYCarpetas(directorioActualUI);
                break;
             case "5":
-               System.out.println("abrirArchivoOCarpeta");
+               abrirArchivoOCarpeta();
                break;
             case "6":
                System.out.println("eliminarArchivoOCarpeta");
                break;
             case "7":
+               System.out.println("renombrarArchivoOCarpeta");
+               break;
+            case "8":
+               System.out.println("moveArchivoOCarpeta");
+               break;
+            case "9":
+               retrocederDirectorio();
+               break;
+            case "10":
                salir();
                break;
             default:
-               System.out.println("Opción no válida.");
+               System.out.println("\u001B[31mOpción inválida.\u001B[0m");
                continue;
          }
       }
@@ -121,15 +140,69 @@ public class Cliente {
       }
    }
    
-   private void listarArchivosYCarpetas() throws IOException {
-      enviarMsjAServidor("3:" + usuario);
-      String listaDelDirectorio = recibirMsjDeServidor();
+   private String[] obtenerArchivosYCarpetas(String directorio) throws IOException {
+      enviarMsjAServidor("4:" + directorio);
+      String respuesta = recibirMsjDeServidor();
+      return respuesta.split("\n");
+   }
+
+   
+   private void listarArchivosYCarpetas(String directorio) throws IOException {
+      String[] listaDelDirectorio = obtenerArchivosYCarpetas(directorio);
       
-      if (listaDelDirectorio.equals("")) {
-         System.out.println("\n\u001B[33mNo hay archivos ni carpetas en el drive de " + usuario + ".\u001B[0m");
+      if (listaDelDirectorio[0].isEmpty()) {
+         System.out.println("\n\u001B[33mNo hay archivos ni carpetas en el drive de " + directorio + ".\u001B[0m");
       } else {
-         System.out.println("\nArchivos y carpetas en el drive de " + usuario + ":");
-         System.out.println(listaDelDirectorio);
+         System.out.println("\nArchivos y carpetas en el drive de " + directorio + ":");
+         for (String archivoOCarpeta : listaDelDirectorio) {
+            if (archivoOCarpeta.charAt(archivoOCarpeta.length() - 1) == '/') {
+               System.out.println("\u001B[33m" + archivoOCarpeta + "\u001B[0m");
+            } else{
+               System.out.println("\u001B[32m" + archivoOCarpeta + "\u001B[0m");
+            }
+         }
+      }
+   }
+   
+   private void abrirArchivoOCarpeta() throws IOException {
+      String[] listaDelDirectorio = obtenerArchivosYCarpetas(directorioActualUI);
+      listarArchivosYCarpetas(directorioActualUI);
+      
+      System.out.print("\nIngresa el nombre del archivo o carpeta que deseas abrir: ");
+      String archivoOCarpeta = inputText.readLine();
+      
+      if (archivoOCarpeta.isEmpty() || archivoOCarpeta.isBlank()) {
+         System.out.println("\u001B[31mEl nombre del archivo o carpeta no puede estar vacío.\u001B[0m");
+         return;
+      }
+      
+      boolean existe = false;
+      for (String item : listaDelDirectorio) {
+         if (item.equals(archivoOCarpeta)) {
+            existe = true;
+            break;
+         }
+      }
+      
+      if (!existe) {
+         System.out.println("\u001B[31mEl archivo o carpeta no existe.\u001B[0m");
+         return;
+      } else {
+         // si es una carpeta, actualizar directorio actual. Si es un archivo, abrirlo
+         if (archivoOCarpeta.charAt(archivoOCarpeta.length() - 1) == '/') {
+            directorioActualUI += "/" + archivoOCarpeta.substring(0, archivoOCarpeta.length() - 1);
+         } else {
+            System.out.println("\u001B[34mAbriendo " + archivoOCarpeta + "...\u001B[0m");
+            // recibirlo como archivo sin guardarlo y abrirlo
+         }
+      }
+   }
+   
+   private void retrocederDirectorio() {
+      if (directorioActualUI.equals(usuario)) {
+         System.out.println("\u001B[31mNo puedes retroceder más.\u001B[0m");
+      } else {
+         directorioActualUI = directorioActualUI.substring(0, directorioActualUI.lastIndexOf('/'));
       }
    }
    

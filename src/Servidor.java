@@ -54,11 +54,23 @@ public class Servidor {
             System.out.println("descargar archivo");
             break;
          case "3":
+            System.out.println("crear carpeta");
+            break;
+         case "4":
             respuesta = String.valueOf(listarArchivosYCarpetas(contenido));
             enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
-         case "4":
+         case "5":
+            System.out.println("abrir archivo o carpeta");
+            break;
+         case "6":
             System.out.println("eliminar archivo o carpeta");
+            break;
+         case "7":
+            System.out.println("renombrar archivo o carpeta");
+            break;
+         case "8":
+            System.out.println("mover archivo o carpeta");
             break;
          default:
             System.out.println("Código de solicitud no válido.");
@@ -110,9 +122,11 @@ public class Servidor {
          String lista = "";
          for (File archivo : archivos) {
             if (archivo.isFile()) {
-               lista += "\u001B[32m" + archivo.getName() + "\n\u001B[0m";
+               //lista += "\u001B[32m" + archivo.getName() + "\n\u001B[0m";
+               lista += archivo.getName() + "\n";
             } else if (archivo.isDirectory()) {
-               lista += "\u001B[33m" + archivo.getName() + "/\n\u001B[0m";
+               //lista += "\u001B[33m" + archivo.getName() + "/\n\u001B[0m";
+               lista += archivo.getName() + "/\n";
             }
          }
          System.out.println("\u001B[35mArchivos y carpetas en " + nombreCarpeta + " listados con éxito.\u001B[0m");
