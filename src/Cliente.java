@@ -43,47 +43,51 @@ public class Cliente {
          break;
       }
       // solicitar al servidor que cree una carpeta con el nombre del usuario
+      solicitarCarpetaPersonal(usuario);
+      
       System.out.println("Bienvenido " + usuario + "!");
-      System.out.println("pase las validaciones de username");
       return 0;
    }
 
    private void mostrarMenu() throws IOException {
-      System.out.println("\n--- Menú Principal ---");
-      System.out.println("1. Subir archivo");
-      System.out.println("2. Descargar archivo");
-      System.out.println("3. Crear carpeta");
-      System.out.println("4. Ver archivos y carpetas");
-      System.out.println("5. Eliminar archivo o carpeta");
-      System.out.println("6. Salir");
-      System.out.print("Selecciona una opción: ");
-      
-      int opcion = Integer.parseInt(inputText.readLine());
-      
-      switch (opcion) {
-         case 1:
-            System.out.println("subirArchivo");
-            break;
-         case 2:
-            System.out.println("descargarArchivo");
-            break;
-         case 3:
-            System.out.println("crearCarpeta");
-            break;
-         case 4:
-            System.out.println("verArchivosYCarpetas");
-            break;
-         case 5:
-            System.out.println("eliminarArchivoOCarpeta");
-            break;
-         case 6:
-            System.out.println("Saliendo...");
-            socketCliente.close();
-            inputText.close();
-            System.exit(0);
-            break;
-         default:
-            System.out.println("Opción no válida.");
+      while (true) {
+         System.out.println("\n\u001B[35m--- Menú Principal ---\u001B[0m");
+         System.out.println("1. Subir archivo");
+         System.out.println("2. Descargar archivo");
+         System.out.println("3. Crear carpeta");
+         System.out.println("4. Ver archivos y carpetas");
+         System.out.println("5. Eliminar archivo o carpeta");
+         System.out.println("6. Salir");
+         System.out.print("Selecciona una opción: ");
+         
+         String opcion = inputText.readLine();
+         
+         switch (opcion) {
+            case "1":
+               System.out.println("subirArchivo");
+               break;
+            case "2":
+               System.out.println("descargarArchivo");
+               break;
+            case "3":
+               System.out.println("crearCarpeta");
+               break;
+            case "4":
+               System.out.println("verArchivosYCarpetas");
+               break;
+            case "5":
+               System.out.println("eliminarArchivoOCarpeta");
+               break;
+            case "6":
+               System.out.println("Saliendo...");
+               socketCliente.close();
+               inputText.close();
+               System.exit(0);
+               break;
+            default:
+               System.out.println("Opción no válida.");
+               continue;
+         }
       }
    }
    
@@ -99,6 +103,12 @@ public class Cliente {
       socketCliente.receive(mensajeRecibido);
       String mensaje = new String(mensajeRecibido.getData(), 0, mensajeRecibido.getLength());
       return mensaje;
+   }
+   
+   private void solicitarCarpetaPersonal(String nombreCarpeta) throws IOException {
+      enviarMsjAServidor("0:" + nombreCarpeta);
+      String respuesta = recibirMsjDeServidor();
+      System.out.println("Respuesta del servidor: " + respuesta);
    }
    
    public static void main(String[] args) {
