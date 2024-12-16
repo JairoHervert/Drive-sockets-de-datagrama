@@ -5,12 +5,14 @@ public class Servidor {
    private int puerto = 12345; // Puerto por defecto
    private DatagramSocket socketServidor;
    
+   String directorioActual = System.getProperty("user.dir");
+   
    public void iniciarServidor() {
       try {
          socketServidor = new DatagramSocket(puerto);
          socketServidor.setReuseAddress(true);
          
-         System.out.println("Servidor iniciado en el puerto " + puerto + " esperando solicitudes...\n");
+         System.out.println("Servidor iniciado en el puerto " + puerto + " esperando solicitudes...");
          
          while (true) {
             manejarSolicitud();
@@ -29,18 +31,20 @@ public class Servidor {
       
       // obtener mensaje del datagrama
       String mensaje = new String(datagramaRecibido.getData(), 0, datagramaRecibido.getLength());
-      System.out.println("Mensaje recibido: " + mensaje);
+      System.out.println("\nMensaje recibido: \u001B[33m" + mensaje + "\u001B[0m");
       // separar el código de la solicitud y el contenido
       String[] partes = mensaje.split(":");
       String codigo = partes[0];
       String contenido = partes[1];
-      System.out.println("codigo = " + codigo);
-      System.out.println("contenido = " + contenido);
+      System.out.println("codigo = \u001B[32m" + codigo + "\u001B[0m");
+      System.out.println("contenido = \u001B[34m" + contenido + "\u001B[0m");
+      
+      String respuesta = "";
       
       switch (codigo) {
          case "0":
             // Crear carpeta personal con el nombre del usuario (contenido)
-            String respuesta = String.valueOf(crearCarpetaPersonal(contenido));
+            respuesta = String.valueOf(crearCarpetaPersonal(contenido));
             enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
          case "1":
@@ -50,7 +54,8 @@ public class Servidor {
             System.out.println("descargar archivo");
             break;
          case "3":
-            System.out.println("ver archivos y carpetas");
+            respuesta = String.valueOf(listarArchivosYCarpetas(contenido));
+            enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
          case "4":
             System.out.println("eliminar archivo o carpeta");
@@ -80,19 +85,40 @@ public class Servidor {
    // Retorna 0 si la carpeta ya existe o se crea con éxito. Retorna -1 si hay un error.
    private int crearCarpetaPersonal(String nombreCarpeta) {
       // directorio actual
-      String rutaActual = System.getProperty("user.dir");
-      File carpeta = new File(rutaActual + "/" + nombreCarpeta);
+      File carpeta = new File(directorioActual + "/" + nombreCarpeta);
       
       // si la carpeta ya existe o se crea con éxito, retornar 1. Si hay un error, retornar 0
       if (carpeta.exists()) {
-         System.out.println("La carpeta ya existe.");
+         System.out.println("\u001B[35mAccediendo al drive de " + nombreCarpeta + "...\u001B[0m");
          return 0;
       } else if (carpeta.mkdir()) {
-         System.out.println("Carpeta creada con éxito.");
-         return 0;
+         System.out.println("\u001B[35mDrive de " + nombreCarpeta + " creado con éxito.\u001B[0m");
+         return 1;
       } else {
-         System.out.println("Error al crear la carpeta.");
+         System.out.println("\u001B[35mError al crear el drive de " + nombreCarpeta + ".\u001B[0m");
          return -1;
+      }
+   }
+   
+   private String listarArchivosYCarpetas(String nombreCarpeta) {
+      
+      File directorio = new File(directorioActual + "/" + nombreCarpeta);
+      
+      // aunque la ruta siempre será un directorio, se verifica si es un directorio por si acaso
+      if(directorio.isDirectory()) {
+         File[] archivos = directorio.listFiles();
+         String lista = "";
+         for (File archivo : archivos) {
+            if (archivo.isFile()) {
+               lista += "\u001B[32m" + archivo.getName() + "\n\u001B[0m";
+            } else if (archivo.isDirectory()) {
+               lista += "\u001B[33m" + archivo.getName() + "/\n\u001B[0m";
+            }
+         }
+         System.out.println("\u001B[35mArchivos y carpetas en " + nombreCarpeta + " listados con éxito.\u001B[0m");
+         return lista;
+      } else {
+         return "\u001B[31mLa ruta especificada no es un directorio.\u001B[0m";
       }
    }
    

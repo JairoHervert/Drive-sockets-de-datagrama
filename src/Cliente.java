@@ -2,7 +2,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.*;
-import java.util.Scanner;
 
 public class Cliente {
    private String usuario;                      // Nombre de usuario
@@ -73,16 +72,16 @@ public class Cliente {
                System.out.println("crearCarpeta");
                break;
             case "4":
-               System.out.println("verArchivosYCarpetas");
+               listarArchivosYCarpetas();
                break;
             case "5":
-               System.out.println("eliminarArchivoOCarpeta");
+               System.out.println("abrirArchivoOCarpeta");
                break;
             case "6":
-               System.out.println("Saliendo...");
-               socketCliente.close();
-               inputText.close();
-               System.exit(0);
+               System.out.println("eliminarArchivoOCarpeta");
+               break;
+            case "7":
+               salir();
                break;
             default:
                System.out.println("Opción no válida.");
@@ -101,14 +100,44 @@ public class Cliente {
       byte[] buffer = new byte[1024];
       DatagramPacket mensajeRecibido = new DatagramPacket(buffer, buffer.length);
       socketCliente.receive(mensajeRecibido);
-      String mensaje = new String(mensajeRecibido.getData(), 0, mensajeRecibido.getLength());
-      return mensaje;
+      return new String(mensajeRecibido.getData(), 0, mensajeRecibido.getLength());
    }
    
    private void solicitarCarpetaPersonal(String nombreCarpeta) throws IOException {
       enviarMsjAServidor("0:" + nombreCarpeta);
       String respuesta = recibirMsjDeServidor();
-      System.out.println("Respuesta del servidor: " + respuesta);
+      
+      switch (respuesta) {
+         case "0":
+            System.out.println("\n\u001B[33mAccediendo al drive de " + usuario + "...\u001B[0m");
+            break;
+         case "1":
+            System.out.println("\n\u001B[32mDrive de " + usuario + " creado con éxito.\u001B[0m");
+            break;
+         default:
+            System.out.println("\n\u001B[31mError al crear el drive de " + usuario + ".\u001B[0m");
+            salir();
+            break;
+      }
+   }
+   
+   private void listarArchivosYCarpetas() throws IOException {
+      enviarMsjAServidor("3:" + usuario);
+      String listaDelDirectorio = recibirMsjDeServidor();
+      
+      if (listaDelDirectorio.equals("")) {
+         System.out.println("\n\u001B[33mNo hay archivos ni carpetas en el drive de " + usuario + ".\u001B[0m");
+      } else {
+         System.out.println("\nArchivos y carpetas en el drive de " + usuario + ":");
+         System.out.println(listaDelDirectorio);
+      }
+   }
+   
+   private void salir() throws IOException {
+      System.out.println("Saliendo...");
+      socketCliente.close();
+      inputText.close();
+      System.exit(0);
    }
    
    public static void main(String[] args) {
