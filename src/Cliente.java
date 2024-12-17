@@ -79,7 +79,7 @@ public class Cliente {
                System.out.println("descargarArchivo");
                break;
             case "3":
-               System.out.println("crearCarpeta");
+               solicitudCrearCarpeta();
                break;
             case "4":
                listarArchivosYCarpetas(directorioActualUI);
@@ -166,6 +166,13 @@ public class Cliente {
    
    private void abrirArchivoOCarpeta() throws IOException {
       String[] listaDelDirectorio = obtenerArchivosYCarpetas(directorioActualUI);
+
+      // verificamos si hay archivos o carpetas para abrir, si no hay, mostramos un mensaje y salimos al menú
+      if (listaDelDirectorio[0].isEmpty()) {
+         System.out.println("\n\u001B[33mNo hay archivos ni carpetas en el drive de " + directorioActualUI + ".\u001B[0m");
+         return;
+      }
+      
       listarArchivosYCarpetas(directorioActualUI);
       
       System.out.print("\nIngresa el nombre del archivo o carpeta que deseas abrir: ");
@@ -196,6 +203,33 @@ public class Cliente {
             // recibirlo como archivo sin guardarlo y abrirlo
          }
       }
+   }
+   
+   private void solicitudCrearCarpeta() throws IOException {
+      System.out.println("\nInserta el nombre de la carpeta que deseas crear: ");
+      String nombreNuevaCarpeta = inputText.readLine();
+      
+      if (nombreNuevaCarpeta == null || nombreNuevaCarpeta.isEmpty() || nombreNuevaCarpeta.isBlank() || !nombreNuevaCarpeta.matches("[a-zA-Z0-9_-]+")) {
+         System.out.println("\u001B[31mEl nombre de la carpeta no puede estar vacío y solo puede contener letras, números, guiones y guiones bajos.\u001B[0m");
+         return;
+      } else {
+         enviarMsjAServidor("3:" + directorioActualUI + "/" + nombreNuevaCarpeta);
+         String respuesta = recibirMsjDeServidor();
+         
+         switch (respuesta) {
+            case "0":
+               System.out.println("\u001B[32mLa carpeta " + nombreNuevaCarpeta + " ya existe.\u001B[0m");
+               break;
+            case "1":
+               System.out.println("\u001B[32mCarpeta " + nombreNuevaCarpeta + " creada con éxito.\u001B[0m");
+               break;
+            default:
+               System.out.println("\u001B[31mError al crear la carpeta " + nombreNuevaCarpeta + ".\u001B[0m");
+               break;
+         }
+         
+      }
+      
    }
    
    private void retrocederDirectorio() {

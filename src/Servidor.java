@@ -44,7 +44,7 @@ public class Servidor {
       switch (codigo) {
          case "0":
             // Crear carpeta personal con el nombre del usuario (contenido)
-            respuesta = String.valueOf(crearCarpetaPersonal(contenido));
+            respuesta = crearCarpeta(codigo, contenido);
             enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
          case "1":
@@ -54,10 +54,11 @@ public class Servidor {
             System.out.println("descargar archivo");
             break;
          case "3":
-            System.out.println("crear carpeta");
+            respuesta = crearCarpeta(codigo, contenido);
+            enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
          case "4":
-            respuesta = String.valueOf(listarArchivosYCarpetas(contenido));
+            respuesta = String.valueOf(obtenerArchivosYCarpetas(contenido));
             enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
          case "5":
@@ -93,26 +94,40 @@ public class Servidor {
       return datagramaRecibido;
    }
    
-   // Crear carpeta personal con el nombre del usuario.
+   // Crear carpeta personal o carpetas del usuario
    // Retorna 0 si la carpeta ya existe o se crea con éxito. Retorna -1 si hay un error.
-   private int crearCarpetaPersonal(String nombreCarpeta) {
+   private String crearCarpeta(String codigo, String nombreCarpeta) {
       // directorio actual
       File carpeta = new File(directorioActual + "/" + nombreCarpeta);
       
       // si la carpeta ya existe o se crea con éxito, retornar 1. Si hay un error, retornar 0
-      if (carpeta.exists()) {
-         System.out.println("\u001B[35mAccediendo al drive de " + nombreCarpeta + "...\u001B[0m");
-         return 0;
-      } else if (carpeta.mkdir()) {
-         System.out.println("\u001B[35mDrive de " + nombreCarpeta + " creado con éxito.\u001B[0m");
-         return 1;
+      if (codigo.equals("0")) {
+         if (carpeta.exists()) {
+            System.out.println("\u001B[35mAccediendo al drive de " + nombreCarpeta + "...\u001B[0m");
+            return "0";
+         } else if (carpeta.mkdir()) {
+            System.out.println("\u001B[35mDrive de " + nombreCarpeta + " creado con éxito.\u001B[0m");
+            return "1";
+         } else {
+            System.out.println("\u001B[35mError al crear el drive de " + nombreCarpeta + ".\u001B[0m");
+            return "-1";
+         }
       } else {
-         System.out.println("\u001B[35mError al crear el drive de " + nombreCarpeta + ".\u001B[0m");
-         return -1;
+         if (carpeta.exists()) {
+            System.out.println("\u001B[35mLa carpeta " + nombreCarpeta + " ya existe.\u001B[0m");
+            return "0";
+         } else if (carpeta.mkdir()) {
+            System.out.println("\u001B[35mCarpeta " + nombreCarpeta + " creada con éxito.\u001B[0m");
+            return "1";
+         } else {
+            System.out.println("\u001B[35mError al crear la carpeta " + nombreCarpeta + ".\u001B[0m");
+            return "-1";
+         }
       }
    }
    
-   private String listarArchivosYCarpetas(String nombreCarpeta) {
+   
+   private String obtenerArchivosYCarpetas(String nombreCarpeta) {
       
       File directorio = new File(directorioActual + "/" + nombreCarpeta);
       
@@ -129,7 +144,7 @@ public class Servidor {
                lista += archivo.getName() + "/\n";
             }
          }
-         System.out.println("\u001B[35mArchivos y carpetas en " + nombreCarpeta + " listados con éxito.\u001B[0m");
+         System.out.println("\u001B[35mLista de archivos y carpetas en " + nombreCarpeta + " enviada con éxito.\u001B[0m");
          return lista;
       } else {
          return "\u001B[31mLa ruta especificada no es un directorio.\u001B[0m";
