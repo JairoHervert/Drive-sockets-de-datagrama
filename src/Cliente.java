@@ -88,7 +88,7 @@ public class Cliente {
                abrirArchivoOCarpeta();
                break;
             case "6":
-               System.out.println("eliminarArchivoOCarpeta");
+               solicitudEliminarArchivoOCarpeta();
                break;
             case "7":
                System.out.println("renombrarArchivoOCarpeta");
@@ -164,6 +164,32 @@ public class Cliente {
       }
    }
    
+   private int buscarArchivoOCarpeta(String archivoOCarpeta) throws IOException {
+      String[] listaDelDirectorio = obtenerArchivosYCarpetas(directorioActualUI);
+      
+      boolean existe = false;
+      for (String item : listaDelDirectorio) {
+         if (item.equals(archivoOCarpeta)) {
+            existe = true;
+            break;
+         }
+      }
+      if (!existe) {
+         return -1;
+      } else {
+         // si es una carpeta, actualizar directorio actual. Si es un archivo, abrirlo
+         if (archivoOCarpeta.charAt(archivoOCarpeta.length() - 1) == '/') {
+            //directorioActualUI += "/" + archivoOCarpeta.substring(0, archivoOCarpeta.length() - 1);
+            return 0;
+         } else {
+            //System.out.println("\u001B[34mAbriendo " + archivoOCarpeta + "...\u001B[0m");
+            // recibirlo como archivo sin guardarlo y abrirlo
+            return 1;
+         }
+      }
+      
+   }
+   
    private void abrirArchivoOCarpeta() throws IOException {
       String[] listaDelDirectorio = obtenerArchivosYCarpetas(directorioActualUI);
 
@@ -178,30 +204,19 @@ public class Cliente {
       System.out.print("\nIngresa el nombre del archivo o carpeta que deseas abrir: ");
       String archivoOCarpeta = inputText.readLine();
       
-      if (archivoOCarpeta.isEmpty() || archivoOCarpeta.isBlank()) {
+      if (archivoOCarpeta.isBlank()) {
          System.out.println("\u001B[31mEl nombre del archivo o carpeta no puede estar vacío.\u001B[0m");
          return;
       }
       
-      boolean existe = false;
-      for (String item : listaDelDirectorio) {
-         if (item.equals(archivoOCarpeta)) {
-            existe = true;
-            break;
-         }
-      }
-      
-      if (!existe) {
+      int encontrado = buscarArchivoOCarpeta(archivoOCarpeta);
+      if (encontrado == -1) {
          System.out.println("\u001B[31mEl archivo o carpeta no existe.\u001B[0m");
          return;
-      } else {
-         // si es una carpeta, actualizar directorio actual. Si es un archivo, abrirlo
-         if (archivoOCarpeta.charAt(archivoOCarpeta.length() - 1) == '/') {
-            directorioActualUI += "/" + archivoOCarpeta.substring(0, archivoOCarpeta.length() - 1);
-         } else {
-            System.out.println("\u001B[34mAbriendo " + archivoOCarpeta + "...\u001B[0m");
-            // recibirlo como archivo sin guardarlo y abrirlo
-         }
+      } else if (encontrado == 0) {
+         directorioActualUI += "/" + archivoOCarpeta.substring(0, archivoOCarpeta.length() - 1);
+      } else if (encontrado == 1) {
+         System.out.println("\u001B[34mAbriendo " + archivoOCarpeta + "...\u001B[0m");
       }
    }
    
@@ -209,7 +224,7 @@ public class Cliente {
       System.out.println("\nInserta el nombre de la carpeta que deseas crear: ");
       String nombreNuevaCarpeta = inputText.readLine();
       
-      if (nombreNuevaCarpeta == null || nombreNuevaCarpeta.isEmpty() || nombreNuevaCarpeta.isBlank() || !nombreNuevaCarpeta.matches("[a-zA-Z0-9_-]+")) {
+      if (nombreNuevaCarpeta == null || nombreNuevaCarpeta.isBlank() || !nombreNuevaCarpeta.matches("[a-zA-Z0-9_-]+")) {
          System.out.println("\u001B[31mEl nombre de la carpeta no puede estar vacío y solo puede contener letras, números, guiones y guiones bajos.\u001B[0m");
          return;
       } else {
@@ -228,6 +243,43 @@ public class Cliente {
                break;
          }
          
+      }
+      
+   }
+   
+   private  void solicitudEliminarArchivoOCarpeta() throws IOException {
+      String[] listaDelDirectorio = obtenerArchivosYCarpetas(directorioActualUI);
+      
+      // verificamos si hay archivos o carpetas para abrir, si no hay, mostramos un mensaje y salimos al menú
+      if (listaDelDirectorio[0].isEmpty()) {
+         System.out.println("\n\u001B[33mNo hay archivos ni carpetas en el directorio actual.\u001B[0m");
+         return;
+      }
+      
+      // mostrar archivos y carpetas en el directorio actual
+      listarArchivosYCarpetas(directorioActualUI);
+      
+      System.out.print("\nIngresa el nombre del archivo o carpeta que deseas eliminar: ");
+      String archivoOCarpeta = inputText.readLine();
+      
+      if (archivoOCarpeta == null || archivoOCarpeta.isBlank() || !archivoOCarpeta.matches("[a-zA-Z0-9._\\- /áéíóúÁÉÍÓÚñÑ]+")) {
+         System.out.println("\u001B[31mEl nombre del archivo o carpeta no puede estar vacío y solo puede contener letras, números, guiones, guiones bajos, diagonal, espacios y puntos.\u001B[0m");
+         return;
+      } else {
+         enviarMsjAServidor("6:" + directorioActualUI + "/" + archivoOCarpeta);
+         String respuesta = recibirMsjDeServidor();
+         
+         switch (respuesta) {
+            case "0":
+               System.out.println("\u001B[32mEl archivo o carpeta " + archivoOCarpeta + " eliminado con éxito.\u001B[0m");
+               break;
+            case "1":
+               System.out.println("\u001B[31mEl archivo o carpeta " + archivoOCarpeta + " no existe.\u001B[0m");
+               break;
+            default:
+               System.out.println("\u001B[31mError al eliminar el archivo o carpeta " + archivoOCarpeta + ".\u001B[0m");
+               break;
+         }
       }
       
    }

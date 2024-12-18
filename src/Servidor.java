@@ -58,14 +58,15 @@ public class Servidor {
             enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
          case "4":
-            respuesta = String.valueOf(obtenerArchivosYCarpetas(contenido));
+            respuesta = obtenerArchivosYCarpetas(contenido);
             enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
          case "5":
             System.out.println("abrir archivo o carpeta");
             break;
          case "6":
-            System.out.println("eliminar archivo o carpeta");
+            respuesta = eliminarArchivoOCarpeta(contenido);
+            enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
          case "7":
             System.out.println("renombrar archivo o carpeta");
@@ -150,6 +151,41 @@ public class Servidor {
          return "\u001B[31mLa ruta especificada no es un directorio.\u001B[0m";
       }
    }
+   
+   private String eliminarArchivoOCarpeta(String nombreCarpeta) {
+      File archivoOCarpeta = new File(directorioActual + "/" + nombreCarpeta);
+      
+      if (archivoOCarpeta.exists()) {
+         if (eliminarRecursivamente(archivoOCarpeta)) {
+            System.out.println("\u001B[35mArchivo o carpeta " + nombreCarpeta + " eliminado con éxito.\u001B[0m");
+            return "0";
+         } else {
+            System.out.println("\u001B[35mError al eliminar el archivo o carpeta " + nombreCarpeta + ".\u001B[0m");
+            return "-1";
+         }
+      } else {
+         System.out.println("\u001B[35mEl archivo o carpeta " + nombreCarpeta + " no existe.\u001B[0m");
+         return "1";
+      }
+   }
+   
+   private boolean eliminarRecursivamente(File archivoOCarpeta) {
+      if (archivoOCarpeta.isDirectory()) {
+         // Obtener todos los archivos y subcarpetas dentro de esta carpeta
+         File[] contenido = archivoOCarpeta.listFiles();
+         if (contenido != null) {
+            for (File archivo : contenido) {
+               // Llamar recursivamente para cada archivo o subcarpeta
+               if (!eliminarRecursivamente(archivo)) {
+                  return false;
+               }
+            }
+         }
+      }
+      // Eliminar archivo o carpeta vacía
+      return archivoOCarpeta.delete();
+   }
+
    
    public static void main(String[] args) {
       new Servidor().iniciarServidor();
