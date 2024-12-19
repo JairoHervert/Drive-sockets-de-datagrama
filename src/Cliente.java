@@ -85,13 +85,13 @@ public class Cliente {
                listarArchivosYCarpetas(directorioActualUI);
                break;
             case "5":
-               abrirArchivoOCarpeta();
+               solicitudAbrirArchivoOCarpeta();
                break;
             case "6":
                solicitudEliminarArchivoOCarpeta();
                break;
             case "7":
-               System.out.println("renombrarArchivoOCarpeta");
+               solicitudRenombrarArchivoOCarpeta();
                break;
             case "8":
                System.out.println("moveArchivoOCarpeta");
@@ -164,33 +164,7 @@ public class Cliente {
       }
    }
    
-   private int buscarArchivoOCarpeta(String archivoOCarpeta) throws IOException {
-      String[] listaDelDirectorio = obtenerArchivosYCarpetas(directorioActualUI);
-      
-      boolean existe = false;
-      for (String item : listaDelDirectorio) {
-         if (item.equals(archivoOCarpeta)) {
-            existe = true;
-            break;
-         }
-      }
-      if (!existe) {
-         return -1;
-      } else {
-         // si es una carpeta, actualizar directorio actual. Si es un archivo, abrirlo
-         if (archivoOCarpeta.charAt(archivoOCarpeta.length() - 1) == '/') {
-            //directorioActualUI += "/" + archivoOCarpeta.substring(0, archivoOCarpeta.length() - 1);
-            return 0;
-         } else {
-            //System.out.println("\u001B[34mAbriendo " + archivoOCarpeta + "...\u001B[0m");
-            // recibirlo como archivo sin guardarlo y abrirlo
-            return 1;
-         }
-      }
-      
-   }
-   
-   private void abrirArchivoOCarpeta() throws IOException {
+   private void solicitudAbrirArchivoOCarpeta() throws IOException {
       String[] listaDelDirectorio = obtenerArchivosYCarpetas(directorioActualUI);
 
       // verificamos si hay archivos o carpetas para abrir, si no hay, mostramos un mensaje y salimos al menú
@@ -202,21 +176,32 @@ public class Cliente {
       listarArchivosYCarpetas(directorioActualUI);
       
       System.out.print("\nIngresa el nombre del archivo o carpeta que deseas abrir: ");
-      String archivoOCarpeta = inputText.readLine();
+      String nombreArchivoOCarpeta = inputText.readLine();
       
-      if (archivoOCarpeta.isBlank()) {
-         System.out.println("\u001B[31mEl nombre del archivo o carpeta no puede estar vacío.\u001B[0m");
+      if (nombreArchivoOCarpeta == null || nombreArchivoOCarpeta.isBlank() || !nombreArchivoOCarpeta.matches("[a-zA-Z0-9._\\- /áéíóúÁÉÍÓÚñÑ]+")) {
+         System.out.println("\u001B[31mEl nombre del archivo o carpeta no puede estar vacío y solo puede contener letras, números, guiones, guiones bajos, diagonal, espacios y puntos.\u001B[0m");
          return;
-      }
-      
-      int encontrado = buscarArchivoOCarpeta(archivoOCarpeta);
-      if (encontrado == -1) {
-         System.out.println("\u001B[31mEl archivo o carpeta no existe.\u001B[0m");
-         return;
-      } else if (encontrado == 0) {
-         directorioActualUI += "/" + archivoOCarpeta.substring(0, archivoOCarpeta.length() - 1);
-      } else if (encontrado == 1) {
-         System.out.println("\u001B[34mAbriendo " + archivoOCarpeta + "...\u001B[0m");
+      } else {
+         enviarMsjAServidor("5:" + directorioActualUI + "/" + nombreArchivoOCarpeta);
+         String respuesta = recibirMsjDeServidor();
+         System.out.println("Respuesta: " + respuesta);
+         
+         switch (respuesta) {
+            case "-1":
+               System.out.println("\u001B[31mEl archivo o carpeta " + nombreArchivoOCarpeta + " no existe.\u001B[0m");
+               break;
+            case "0":
+               directorioActualUI += "/" + nombreArchivoOCarpeta.substring(0, nombreArchivoOCarpeta.length() - 1);
+               System.out.println("\u001B[32mAbriendo la carpeta " + nombreArchivoOCarpeta + "...\u001B[0m");
+               break;
+            case "1":
+               System.out.println("\u001B[32mAbriendo " + nombreArchivoOCarpeta + "...\u001B[0m");
+               break;
+            default:
+               System.out.println("\u001B[31mError al abrir el archivo o carpeta " + nombreArchivoOCarpeta + ".\u001B[0m");
+               break;
+         }
+         
       }
    }
    
@@ -224,8 +209,8 @@ public class Cliente {
       System.out.println("\nInserta el nombre de la carpeta que deseas crear: ");
       String nombreNuevaCarpeta = inputText.readLine();
       
-      if (nombreNuevaCarpeta == null || nombreNuevaCarpeta.isBlank() || !nombreNuevaCarpeta.matches("[a-zA-Z0-9_-]+")) {
-         System.out.println("\u001B[31mEl nombre de la carpeta no puede estar vacío y solo puede contener letras, números, guiones y guiones bajos.\u001B[0m");
+      if (nombreNuevaCarpeta == null || nombreNuevaCarpeta.isBlank() || !nombreNuevaCarpeta.matches("[a-zA-Z0-9._\\- /áéíóúÁÉÍÓÚñÑ]+")) {
+         System.out.println("\u001B[31mEl nombre del archivo o carpeta no puede estar vacío y solo puede contener letras, números, guiones, guiones bajos, diagonal, espacios y puntos.\u001B[0m");
          return;
       } else {
          enviarMsjAServidor("3:" + directorioActualUI + "/" + nombreNuevaCarpeta);
@@ -284,6 +269,39 @@ public class Cliente {
       
    }
    
+   private void solicitudRenombrarArchivoOCarpeta() throws IOException {
+      String[] listaDelDirectorio = obtenerArchivosYCarpetas(directorioActualUI);
+      
+      // verificamos si hay archivos o carpetas, si no hay, mostramos un mensaje y salimos al menú
+      if (listaDelDirectorio[0].isEmpty()) {
+         System.out.println("\n\u001B[33mNo hay archivos ni carpetas en el directorio actual.\u001B[0m");
+         return;
+      }
+      
+      // mostrar archivos y carpetas en el directorio actual
+      listarArchivosYCarpetas(directorioActualUI);
+      
+      System.out.print("\nIngresa el nombre del archivo o carpeta que deseas renombrar: ");
+      String archivoOCarpeta = inputText.readLine();
+      
+      if (archivoOCarpeta == null || archivoOCarpeta.isBlank() || !archivoOCarpeta.matches("[a-zA-Z0-9._\\- /áéíóúÁÉÍÓÚñÑ]+")) {
+         System.out.println("\u001B[31mEl nombre del archivo o carpeta no puede estar vacío y solo puede contener letras, números, guiones, guiones bajos, diagonal, espacios y puntos.\u001B[0m");
+         return;
+      } else {
+         enviarMsjAServidor("7:" + directorioActualUI + "/" + archivoOCarpeta);
+         String respuesta = recibirMsjDeServidor();
+         
+         // si la respuesta recibida es -1 significa que el archivo o carpeta no existe, y regresamos al menu
+         if (respuesta.equals("-1")) {
+            System.out.println("\u001B[31mEl archivo o carpeta " + archivoOCarpeta + " no existe.\u001B[0m");
+            return;
+         } else {
+            System.out.println("\u001B[31mError al renombrar el archivo o carpeta " + archivoOCarpeta + ".\u001B[0m");
+         }
+         
+      }
+   }
+   
    private void retrocederDirectorio() {
       if (directorioActualUI.equals(usuario)) {
          System.out.println("\u001B[31mNo puedes retroceder más.\u001B[0m");
@@ -303,3 +321,9 @@ public class Cliente {
       new Cliente().iniciarCliente();
    }
 }
+
+
+// tarea de FEPI
+// cambiar nombre de la carpeta de teams: numequipo nombre del proyecto
+// hacer el sepelling, algo asi, para ver como vendemos el proyecto, debe ser un video...
+// le podemos ir mostrando avanxces como los guiones de loq ue queremos hacefr

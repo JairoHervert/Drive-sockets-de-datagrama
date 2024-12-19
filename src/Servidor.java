@@ -62,7 +62,8 @@ public class Servidor {
             enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
          case "5":
-            System.out.println("abrir archivo o carpeta");
+            respuesta = abrirArchivoOCarpeta(contenido);
+            enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
          case "6":
             respuesta = eliminarArchivoOCarpeta(contenido);
@@ -152,6 +153,24 @@ public class Servidor {
       }
    }
    
+   // retorna 0 si es una carpeta, 1 si el archivo se abre con éxito (mandarlo), -1 si no existe
+   private String abrirArchivoOCarpeta(String nombreCarpeta) {
+      File archivoOCarpeta = new File(directorioActual + "/" + nombreCarpeta);
+      
+      if (archivoOCarpeta.exists()) {
+         if (archivoOCarpeta.isDirectory()) {
+            System.out.println("\u001B[35mAccediendo a la carpeta " + nombreCarpeta + "...\u001B[0m");
+            return "0";
+         } else {
+            System.out.println("\u001B[35mAbriendo el archivo " + nombreCarpeta + "...\u001B[0m");
+            return "1";
+         }
+      } else {
+         System.out.println("\u001B[35mEl archivo o carpeta " + nombreCarpeta + " no existe.\u001B[0m");
+         return "-1";
+      }
+   }
+   
    private String eliminarArchivoOCarpeta(String nombreCarpeta) {
       File archivoOCarpeta = new File(directorioActual + "/" + nombreCarpeta);
       
@@ -186,6 +205,15 @@ public class Servidor {
       return archivoOCarpeta.delete();
    }
 
+   private String renombrarArchivoOCarpeta (String nombreArchivoOCarpeta) {
+      File directorioArchivoOCarpeta = new File(directorioActual + "/" + nombreArchivoOCarpeta);
+      if (directorioArchivoOCarpeta.exists()) {
+         return "0";
+      } else {
+         System.out.println("\u001B[35mEl archivo o carpeta " + nombreArchivoOCarpeta + " no existe.\u001B[0m");
+         return "-1";
+      }
+   }
    
    public static void main(String[] args) {
       new Servidor().iniciarServidor();
