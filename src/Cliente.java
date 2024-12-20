@@ -291,12 +291,18 @@ public class Cliente {
          enviarMsjAServidor("7:" + directorioActualUI + "/" + archivoOCarpeta);
          String respuesta = recibirMsjDeServidor();
          
+         System.out.println("respuesta = " + respuesta);
+         
          // si la respuesta recibida es -1 significa que el archivo o carpeta no existe, y regresamos al menu
          if (respuesta.equals("-1")) {
             System.out.println("\u001B[31mEl archivo o carpeta " + archivoOCarpeta + " no existe.\u001B[0m");
             return;
          } else {
-            System.out.println("\u001B[31mError al renombrar el archivo o carpeta " + archivoOCarpeta + ".\u001B[0m");
+            System.out.println("Ingresa el nuevo nombre, si es una carpeta ya no es necesario agregar '/' al final\n");
+            System.out.println("Nuevo nombre: ");
+            String nuevoNombre = inputText.readLine();
+            enviarMsjAServidor(nuevoNombre);
+            String pudoCambiarse = recibirMsjDeServidor();
          }
          
       }

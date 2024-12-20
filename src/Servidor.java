@@ -70,7 +70,8 @@ public class Servidor {
             enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
          case "7":
-            System.out.println("renombrar archivo o carpeta");
+            respuesta = renombrarArchivoOCarpeta(contenido);
+            enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
          case "8":
             System.out.println("mover archivo o carpeta");
@@ -205,10 +206,20 @@ public class Servidor {
       return archivoOCarpeta.delete();
    }
 
-   private String renombrarArchivoOCarpeta (String nombreArchivoOCarpeta) {
+   private String renombrarArchivoOCarpeta (String nombreArchivoOCarpeta) throws IOException {
       File directorioArchivoOCarpeta = new File(directorioActual + "/" + nombreArchivoOCarpeta);
       if (directorioArchivoOCarpeta.exists()) {
+         System.out.println("Archivo o carpeta " + nombreArchivoOCarpeta + " encontrado.");
+         System.out.println("Esperando el nuevo nombre del archivo o carpeta...");
+         enviarMs
+      jACliente("0", InetAddress.getByName("localhost"), 12346);
+         
+         DatagramPacket datagramaRecibido = recibirDatagrama();
+         String nuevoNombre = new String(datagramaRecibido.getData(), 0, datagramaRecibido.getLength());
+         System.out.println("nuevoNombre = " + nuevoNombre);
+         
          return "0";
+         
       } else {
          System.out.println("\u001B[35mEl archivo o carpeta " + nombreArchivoOCarpeta + " no existe.\u001B[0m");
          return "-1";
