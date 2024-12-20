@@ -129,6 +129,14 @@ public class Servidor {
       }
    }
    
+   
+   private String guardarArchivo(String nombreArchivo) {
+      // Implementar lógica para guardar archivo
+      return "";
+   }
+   
+   
+   
    private String obtenerArchivosYCarpetas(String nombreCarpeta) {
       
       File directorio = new File(directorioActual + "/" + nombreCarpeta);

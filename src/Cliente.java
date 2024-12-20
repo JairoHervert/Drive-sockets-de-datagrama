@@ -1,4 +1,5 @@
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.*;
@@ -72,7 +73,7 @@ public class Cliente {
          
          switch (opcion) {
             case "1":
-               System.out.println("subirArchivo");
+               solicitarSubirArchivo();
                break;
             case "2":
                System.out.println("descargarArchivo");
@@ -139,12 +140,47 @@ public class Cliente {
       }
    }
    
+   private void solicitarSubirArchivo() throws IOException {
+      
+      // solicitar al usuario la ruta del archivo a subir
+      System.out.println("\nIngresa la ruta del archivo o carpeta que deseas subir: ");
+      String rutaArchivo = inputText.readLine();
+      
+      // si la ruta está vacía, mostrar mensaje y salir al menú principal
+      if (rutaArchivo == null || rutaArchivo.isBlank() || !rutaArchivo.matches("[a-zA-Z0-9:._\\\\\\- /áéíóúÁÉÍÓÚñÑ]+")) {
+         System.out.println("\u001B[31mLa ruta del archivo no puede estar vacía y solo puede contener letras, números, guiones, guiones bajos, diagonal, espacios y puntos.\u001B[0m");
+         return;
+      }
+      
+      // rutas para pruebas, una carpeta y un archivo
+      // C:\Users\jairo\OneDrive\Escritorio\otros\backgroundDel.py
+      // C:\Users\jairo\OneDrive\Escritorio\otros\
+      
+      // verificar si la ruta es válida
+      File archivo = new File(rutaArchivo);
+      if (archivo.exists()) {
+         if (archivo.isDirectory()) {
+            // comprimir la carpeta y enviarla al servidor
+            System.out.println("\u001B[32mComprimiendo la carpeta " + archivo.getName() + "...\u001B[0m");
+            
+            
+         } else {
+            System.out.println("\u001B[32mSubiendo el archivo " + archivo.getName() + "...\u001B[0m");
+         }
+      } else {
+         System.out.println("\u001B[31mEl archivo o carpeta no existe.\u001B[0m");
+      }
+   }
+
+   
+   
+   
+   
    private String[] obtenerArchivosYCarpetas(String directorio) throws IOException {
       enviarMsjAServidor("4:" + directorio);
       String respuesta = recibirMsjDeServidor();
       return respuesta.split("\n");
    }
-
    
    private void listarArchivosYCarpetas(String directorio) throws IOException {
       String[] listaDelDirectorio = obtenerArchivosYCarpetas(directorio);
