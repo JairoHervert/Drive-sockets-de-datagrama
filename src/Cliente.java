@@ -55,7 +55,6 @@ public class Cliente {
    private void mostrarMenu() throws IOException {
       while (true) {
          System.out.println("\n\u001B[35m--- Menú Principal ---\u001B[0m");
-         //System.out.println("Directorio actual real: " + directorioActualReal);
          System.out.println("Directorio actual UI: " + "\u001B[36mDrive/" + directorioActualUI + "/\u001B[0m");
          System.out.println("\u001B[36m1.\u001B[0m Subir archivo");
          System.out.println("\u001B[36m2.\u001B[0m Descargar archivo");
@@ -184,14 +183,17 @@ public class Cliente {
       } else {
          enviarMsjAServidor("5:" + directorioActualUI + "/" + nombreArchivoOCarpeta);
          String respuesta = recibirMsjDeServidor();
-         System.out.println("Respuesta: " + respuesta);
          
          switch (respuesta) {
             case "-1":
                System.out.println("\u001B[31mEl archivo o carpeta " + nombreArchivoOCarpeta + " no existe.\u001B[0m");
                break;
             case "0":
-               directorioActualUI += "/" + nombreArchivoOCarpeta.substring(0, nombreArchivoOCarpeta.length() - 1);
+               if (nombreArchivoOCarpeta.charAt(nombreArchivoOCarpeta.length() - 1) == '/') {
+                  directorioActualUI += "/" + nombreArchivoOCarpeta.substring(0, nombreArchivoOCarpeta.length() - 1);
+               } else {
+                  directorioActualUI += "/" + nombreArchivoOCarpeta;
+               }
                System.out.println("\u001B[32mAbriendo la carpeta " + nombreArchivoOCarpeta + "...\u001B[0m");
                break;
             case "1":
@@ -289,22 +291,34 @@ public class Cliente {
          return;
       } else {
          enviarMsjAServidor("7:" + directorioActualUI + "/" + archivoOCarpeta);
-         String respuesta = recibirMsjDeServidor();
-         
-         System.out.println("respuesta = " + respuesta);
          
          // si la respuesta recibida es -1 significa que el archivo o carpeta no existe, y regresamos al menu
+         String respuesta = recibirMsjDeServidor();
+         
          if (respuesta.equals("-1")) {
             System.out.println("\u001B[31mEl archivo o carpeta " + archivoOCarpeta + " no existe.\u001B[0m");
             return;
          } else {
-            System.out.println("Ingresa el nuevo nombre, si es una carpeta ya no es necesario agregar '/' al final\n");
+            System.out.println("\nIngresa el nuevo nombre, solo nombre, sin la extensión del archivo o la diagonal de la carpeta.");
             System.out.println("Nuevo nombre: ");
+            
             String nuevoNombre = inputText.readLine();
+            
+            if (nuevoNombre == null || nuevoNombre.isBlank() || !nuevoNombre.matches("[a-zA-Z0-9_\\- áéíóúÁÉÍÓÚñÑ]+")) {
+               System.out.println("\u001B[31mEl nuevo nombre no puede estar vacío y solo puede contener letras, números, guiones, guiones bajos y espacios.\u001B[0m");
+               return;
+            }
             enviarMsjAServidor(nuevoNombre);
+            
+            // si recibimos un 0, significa que el archivo o carpeta se pudo renombrar con éxito
+            // si recibimos un -1, significa que hubo un error al renombrar el archivo o carpeta
             String pudoCambiarse = recibirMsjDeServidor();
+            if (pudoCambiarse.equals("0")) {
+               System.out.println("\u001B[32mEl archivo o carpeta " + archivoOCarpeta + " renombrado con éxito.\u001B[0m");
+            } else {
+               System.out.println("\u001B[31mError al renombrar el archivo o carpeta " + archivoOCarpeta + ".\u001B[0m");
+            }
          }
-         
       }
    }
    

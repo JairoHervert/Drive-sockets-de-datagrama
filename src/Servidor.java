@@ -70,7 +70,7 @@ public class Servidor {
             enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
          case "7":
-            respuesta = renombrarArchivoOCarpeta(contenido);
+            respuesta = renombrarArchivoOCarpeta(contenido, direccionCliente, puertoCliente);
             enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
          case "8":
@@ -128,7 +128,6 @@ public class Servidor {
          }
       }
    }
-   
    
    private String obtenerArchivosYCarpetas(String nombreCarpeta) {
       
@@ -206,24 +205,67 @@ public class Servidor {
       return archivoOCarpeta.delete();
    }
 
-   private String renombrarArchivoOCarpeta (String nombreArchivoOCarpeta) throws IOException {
+   private String renombrarArchivoOCarpeta (String nombreArchivoOCarpeta, InetAddress direccionCliente, int puertoCliente) throws IOException {
       File directorioArchivoOCarpeta = new File(directorioActual + "/" + nombreArchivoOCarpeta);
       if (directorioArchivoOCarpeta.exists()) {
-         System.out.println("Archivo o carpeta " + nombreArchivoOCarpeta + " encontrado.");
-         System.out.println("Esperando el nuevo nombre del archivo o carpeta...");
-         enviarMs
-      jACliente("0", InetAddress.getByName("localhost"), 12346);
+         // avisar al cliente que el archivo o carpeta existe y puede ser renombrado
+         enviarMsjACliente("0", direccionCliente, puertoCliente);
+         System.out.println("\u001B[35mArchivo o carpeta " + nombreArchivoOCarpeta + " existe y puede ser renombrado.\u001B[0m");
+         System.out.println("\u001B[35mEsperando nuevo nombre...\u001B[0m");
          
+         // Recibimos el nuevo nombre del archivo o carpeta
          DatagramPacket datagramaRecibido = recibirDatagrama();
          String nuevoNombre = new String(datagramaRecibido.getData(), 0, datagramaRecibido.getLength());
-         System.out.println("nuevoNombre = " + nuevoNombre);
          
-         return "0";
+         // ajustamos la ruta para posicionarnos en el directorio actual y solo agregar el nuevo nombre ya sea de archivo o carpeta
+         String ruta = formatearRuta(directorioActual, nombreArchivoOCarpeta);
          
+         File nuevoArchivoOCarpeta = null;
+         if (directorioArchivoOCarpeta.isDirectory()) {
+            nuevoArchivoOCarpeta = new File(ruta + nuevoNombre);
+         } else {
+            // si es un archivo separamos el nombre del drive y la extensión
+            String[] partes = nombreArchivoOCarpeta.split("\\.");
+            
+            // si tiene extensión se la agregamos al nuevo nombre y si no, solo el nuevo nombre
+            if (partes.length == 2) {
+               // formateamos como: drive/nuevoNombre.extensión
+               nuevoNombre = ruta + nuevoNombre + "." + partes[1];
+            } else {
+               // formateamos como: drive/nuevoNombre
+               nuevoNombre = ruta + nuevoNombre;
+            }
+            nuevoArchivoOCarpeta = new File(directorioActual + "/" + nuevoNombre);
+         }
+         
+         if (directorioArchivoOCarpeta.renameTo(nuevoArchivoOCarpeta)) {
+            System.out.println("\u001B[35mArchivo o carpeta " + nombreArchivoOCarpeta + " renombrado a " + nuevoNombre + " con éxito.\u001B[0m");
+            return "0";
+         } else {
+            System.out.println("\u001B[35mError al renombrar el archivo o carpeta " + nombreArchivoOCarpeta + ".\u001B[0m");
+            return "-1";
+         }
       } else {
          System.out.println("\u001B[35mEl archivo o carpeta " + nombreArchivoOCarpeta + " no existe.\u001B[0m");
          return "-1";
       }
+   }
+   
+   private String formatearRuta(String directorioActual, String nombreArchivoOCarpeta) {
+      // obtenemos el nombre del drive excluyendo la carpeta o archivo
+      int ultimaBarra = nombreArchivoOCarpeta.lastIndexOf("/");
+
+      if (nombreArchivoOCarpeta.length() >= ultimaBarra) {
+         //System.out.println("entré al if y hare el while");
+         while (nombreArchivoOCarpeta.charAt(nombreArchivoOCarpeta.length()-1) == '/') {
+            nombreArchivoOCarpeta = nombreArchivoOCarpeta.substring(0, nombreArchivoOCarpeta.length()-1);
+         }
+      }
+      
+      ultimaBarra = nombreArchivoOCarpeta.lastIndexOf("/");
+      nombreArchivoOCarpeta = nombreArchivoOCarpeta.substring(0, ultimaBarra);
+      nombreArchivoOCarpeta = nombreArchivoOCarpeta + "/";
+      return nombreArchivoOCarpeta;
    }
    
    public static void main(String[] args) {
