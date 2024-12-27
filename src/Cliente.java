@@ -1,8 +1,7 @@
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 public class Cliente {
    private String usuario;                      // Nombre de usuario
@@ -141,12 +140,11 @@ public class Cliente {
    }
    
    private void solicitarSubirArchivo() throws IOException {
-      
       // solicitar al usuario la ruta del archivo a subir
       System.out.println("\nIngresa la ruta del archivo o carpeta que deseas subir: ");
       String rutaArchivo = inputText.readLine();
       
-      // si la ruta está vacía, mostrar mensaje y salir al menú principal
+      // si la ruta está vacía o no es válida, mostrar un mensaje y salir
       if (rutaArchivo == null || rutaArchivo.isBlank() || !rutaArchivo.matches("[a-zA-Z0-9:._\\\\\\- /áéíóúÁÉÍÓÚñÑ]+")) {
          System.out.println("\u001B[31mLa ruta del archivo no puede estar vacía y solo puede contener letras, números, guiones, guiones bajos, diagonal, espacios y puntos.\u001B[0m");
          return;
@@ -154,24 +152,70 @@ public class Cliente {
       
       // rutas para pruebas, una carpeta y un archivo
       // C:\Users\jairo\OneDrive\Escritorio\otros\backgroundDel.py
-      // C:\Users\jairo\OneDrive\Escritorio\otros\
+      // C:\Users\jairo\OneDrive\Escritorio\otros\perro
+      // C:\Users\jairo\OneDrive\Escritorio\otros\vacia
       
       // verificar si la ruta es válida
       File archivo = new File(rutaArchivo);
       if (archivo.exists()) {
          if (archivo.isDirectory()) {
-            // comprimir la carpeta y enviarla al servidor
+            // comprimir la carpeta antes de subirla
             System.out.println("\u001B[32mComprimiendo la carpeta " + archivo.getName() + "...\u001B[0m");
             
+            //FileOutputStream fos = new FileOutputStream(archivo.getAbsolutePath() + ".zip");
             
-         } else {
-            System.out.println("\u001B[32mSubiendo el archivo " + archivo.getName() + "...\u001B[0m");
+            // el archivo comprimido se guardará en el directorio actual, con el nombre de la carpeta. Una vez subido, se eliminará el zip
+            FileOutputStream fos = new FileOutputStream(archivo.getName() + ".zip");
+            ZipOutputStream zos = new ZipOutputStream(fos);
+            comprimirCarpeta(archivo, archivo.getName(), zos);
+            zos.close();
+            fos.close();
+            
+            //archivo = new File(archivo.getAbsolutePath() + ".zip");
+            archivo = new File(archivo.getName() + ".zip");
+            System.out.println("El archivo comprimido se encuentra en " + archivo.getAbsolutePath());
          }
+         
+         // enviar el archivo al servidor
+         System.out.println("\u001B[32mSubiendo el archivo " + archivo.getName() + "...\u001B[0m");
+         enviarMsjAServidor("1:" + archivo.getName());
+         
+         
+         
       } else {
          System.out.println("\u001B[31mEl archivo o carpeta no existe.\u001B[0m");
       }
    }
-
+   
+   private static void comprimirCarpeta(File carpeta, String nombreBase, ZipOutputStream zos) throws IOException {
+      File[] archivos = carpeta.listFiles();
+      
+      if (archivos != null) {
+         for (File archivo : archivos) {
+            String rutaArchivo = nombreBase + "/" + archivo.getName();
+            if (archivo.isDirectory()) {
+               // Llamada recursiva para comprimir subcarpetas
+               comprimirCarpeta(archivo, rutaArchivo, zos);
+            } else {
+               // Comprimir archivo
+               try (FileInputStream fis = new FileInputStream(archivo)) {
+                  ZipEntry zipEntry = new ZipEntry(rutaArchivo);
+                  zos.putNextEntry(zipEntry);
+                  
+                  byte[] buffer = new byte[1024];
+                  int bytesLeidos;
+                  while ((bytesLeidos = fis.read(buffer)) > 0) {
+                     zos.write(buffer, 0, bytesLeidos);
+                  }
+                  
+                  zos.closeEntry();
+               }
+            }
+         }
+      }
+   }
+   
+   
    
    
    

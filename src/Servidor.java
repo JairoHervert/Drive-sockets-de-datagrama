@@ -48,7 +48,9 @@ public class Servidor {
             enviarMsjACliente(respuesta, direccionCliente, puertoCliente);
             break;
          case "1":
-            System.out.println("guardar archivo");
+            respuesta = guardarArchivo(contenido, direccionCliente, puertoCliente);
+            
+            
             break;
          case "2":
             System.out.println("descargar archivo");
@@ -96,6 +98,18 @@ public class Servidor {
       socketServidor.receive(datagramaRecibido);
       return datagramaRecibido;
    }
+   
+   
+   private String guardarArchivo(String nombreArchivo, InetAddress direccionCliente, int puertoCliente) throws IOException {
+      // Implementar lógica para guardar archivo
+      System.out.println("\u001B[35mGuardando archivo \"" + nombreArchivo + "\"...\u001B[0m");
+      return "";
+   }
+   
+   
+   
+   
+   
    
    // Crear carpeta personal o carpetas del usuario
    // Retorna 0 si la carpeta ya existe o se crea con éxito. Retorna -1 si hay un error.
