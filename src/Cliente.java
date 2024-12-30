@@ -245,7 +245,7 @@ public class Cliente {
       
       FileInputStream fisArchivo = new FileInputStream(archivo);
       
-      int numSecuencia = 0;
+      int numSecuencia = 1;
       int baseDeVentana = 0;
       Set<Integer> manejadorACK = new HashSet<>();
       byte[] bufferPaquete = new byte[tamPaqueteDatos];
@@ -254,7 +254,7 @@ public class Cliente {
          int acksRecibidos = 0;
          // Enviar paquetes dentro de la ventana
          int i = 0;
-         while ((i < tamVentana) && (numSecuencia < numPaquetes)) {
+         while ((i < tamVentana) && (numSecuencia < numPaquetes + 1)) {
             int bytesLeidos = fisArchivo.read(bufferPaquete);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             baos.write(ByteBuffer.allocate(4).putInt(numSecuencia).array());
@@ -265,10 +265,10 @@ public class Cliente {
             byte[] buffer = baos.toByteArray();
             DatagramPacket paquete = new DatagramPacket(buffer, buffer.length, direccionServidor, puertoServidor);
             socketCliente.send(paquete);
-            System.out.println("Enviado paquete " + (baseDeVentana + i));
+            System.out.println("Enviado paquete " + (numSecuencia) + " de " + numPaquetes);
             
             // Agregar número del paquete enviado al manejador
-            manejadorACK.add(baseDeVentana + i);
+            manejadorACK.add(numSecuencia);
             numSecuencia++;
             i++;
          }
@@ -276,7 +276,6 @@ public class Cliente {
          System.out.println("manejadorACK = " + manejadorACK);
          
          // Esperar ACKs
-         long inicioEspera = System.currentTimeMillis();
          socketCliente.setSoTimeout(2000); // Timeout de 2 segundos
          
          try {
@@ -288,7 +287,7 @@ public class Cliente {
                int ack = ByteBuffer.wrap(paqueteAck.getData()).getInt();
                System.out.println("ACK recibido: " + ack);
                
-               if (ack >= baseDeVentana && ack < baseDeVentana + tamVentana) {
+               if ((ack >= baseDeVentana + 1) && (ack < baseDeVentana + tamVentana + 1)) {
                   acksRecibidos++;
                }
             }
