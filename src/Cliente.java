@@ -236,6 +236,9 @@ public class Cliente {
       int tamPaqueteDatos = 1400 - 4 - 1 - nombreLongitud;
       int numPaquetes = (int) Math.ceil((double) tamArchivo / tamPaqueteDatos);
       
+      // Enviar el numero de paquetes al servidor
+      enviarMsjAServidor(String.valueOf(numPaquetes));
+      
       System.out.println("Nombre del archivo: " + nombreArchivo);
       System.out.println("Tamaño del archivo: " + tamArchivo + " bytes");
       System.out.println("Número de paquetes necesarios: " + numPaquetes);
@@ -243,16 +246,18 @@ public class Cliente {
       FileInputStream fisArchivo = new FileInputStream(archivo);
       
       int numSecuencia = 0;
-      int numBase = 0;
+      int baseDeVentana = 0;
+      Set<Integer> manejadorACK = new HashSet<>();
       byte[] bufferPaquete = new byte[tamPaqueteDatos];
       
-      while (numBase < numPaquetes) {
+      while (baseDeVentana < numPaquetes) {
          int acksRecibidos = 0;
          // Enviar paquetes dentro de la ventana
-         for (int i = 0; i < tamVentana && numBase + i < numPaquetes; i++) {
+         int i = 0;
+         while ((i < tamVentana) && (numSecuencia < numPaquetes)) {
             int bytesLeidos = fisArchivo.read(bufferPaquete);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            baos.write(ByteBuffer.allocate(4).putInt(numBase + i).array());
+            baos.write(ByteBuffer.allocate(4).putInt(numSecuencia).array());
             baos.write(nombreLongitud);
             baos.write(nombreArchivo.getBytes());
             baos.write(bufferPaquete, 0, bytesLeidos);
@@ -260,15 +265,22 @@ public class Cliente {
             byte[] buffer = baos.toByteArray();
             DatagramPacket paquete = new DatagramPacket(buffer, buffer.length, direccionServidor, puertoServidor);
             socketCliente.send(paquete);
-            System.out.println("Enviado paquete " + (numBase + i));
+            System.out.println("Enviado paquete " + (baseDeVentana + i));
+            
+            // Agregar número del paquete enviado al manejador
+            manejadorACK.add(baseDeVentana + i);
+            numSecuencia++;
+            i++;
          }
+         
+         System.out.println("manejadorACK = " + manejadorACK);
          
          // Esperar ACKs
          long inicioEspera = System.currentTimeMillis();
          socketCliente.setSoTimeout(2000); // Timeout de 2 segundos
          
          try {
-            while (acksRecibidos < tamVentana && numBase + acksRecibidos < numPaquetes) {
+            while ((acksRecibidos < tamVentana) && (baseDeVentana + acksRecibidos < numPaquetes)) {
                byte[] bufferAck = new byte[4];
                DatagramPacket paqueteAck = new DatagramPacket(bufferAck, bufferAck.length);
                socketCliente.receive(paqueteAck);
@@ -276,7 +288,7 @@ public class Cliente {
                int ack = ByteBuffer.wrap(paqueteAck.getData()).getInt();
                System.out.println("ACK recibido: " + ack);
                
-               if (ack >= numBase && ack < numBase + tamVentana) {
+               if (ack >= baseDeVentana && ack < baseDeVentana + tamVentana) {
                   acksRecibidos++;
                }
             }
@@ -284,7 +296,7 @@ public class Cliente {
             System.out.println("Timeout. Reenviando paquetes...");
          }
          
-         numBase += acksRecibidos;
+         baseDeVentana += acksRecibidos;
       }
       
       fisArchivo.close();

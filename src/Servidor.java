@@ -109,11 +109,14 @@ public class Servidor {
       String ruta = new String(datagramaRecibido.getData(), 0, datagramaRecibido.getLength());
       String rutaCompleta = directorioActual + "/" + ruta + "/";
       
-      
-      System.out.println("\u001B[35mGuardando archivo \"" + nombreArchivo + "\"...\u001B[0m");
+      // Recibimos el tamaño del archivo
+      datagramaRecibido = recibirDatagrama();
+      int numPaquetes = Integer.parseInt(new String(datagramaRecibido.getData(), 0, datagramaRecibido.getLength()));
+   
+      System.out.println("\n\u001B[35mGuardando archivo \"" + nombreArchivo + "\"...\u001B[0m");
       
       FileOutputStream fos = new FileOutputStream(rutaCompleta + nombreArchivo);
-      int ultimoNumSecuencia = -1;
+      TreeMap<Integer, byte[]> fragmentosDelArchivo = new TreeMap<>();
       
       while (true) {
          datagramaRecibido = recibirDatagrama();
@@ -132,6 +135,7 @@ public class Servidor {
          byte[] datosArchivo = new byte[longitudDatos - 4 - 1 - longitudNombre];
          dis.readFully(datosArchivo);
          
+         /*
          if (numSecuencia == ultimoNumSecuencia + 1) {
             fos.write(datosArchivo);
             fos.flush();
@@ -144,12 +148,29 @@ public class Servidor {
             DatagramPacket paqueteAck = new DatagramPacket(ackData, ackData.length, direccionCliente, puertoCliente);
             socketServidor.send(paqueteAck);
          }
+         */
+         
+         System.out.println("Fragmento recibido: " + "\u001B[33m" + numSecuencia + "\u001B[0m" + " de " + "\u001B[32m" + numPaquetes + "\u001B[0m");
+         
+         // Agregamos los fragmentos del archivo al TreeMap para ordenarlos (al final se unirán)
+         fragmentosDelArchivo.put(numSecuencia, datosArchivo);
+         
+         // Enviar ACK
+         byte[] ackData = ByteBuffer.allocate(4).putInt(numSecuencia).array();
+         DatagramPacket paqueteAck = new DatagramPacket(ackData, ackData.length, direccionCliente, puertoCliente);
+         socketServidor.send(paqueteAck);
          
          // Verificar si es el último paquete
          if (longitudDatos < 1400) {
             System.out.println("\u001B[32mArchivo recibido completamente.\u001B[0m");
             break;
          }
+      }
+      
+      // Unir los fragmentos del archivo
+      for (Map.Entry<Integer, byte[]> fragmento : fragmentosDelArchivo.entrySet()) {
+         fos.write(fragmento.getValue());
+         fos.flush();
       }
       
       fos.close();
