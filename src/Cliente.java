@@ -169,8 +169,7 @@ public class Cliente {
          if (archivo.isDirectory()) {
             // comprimir la carpeta antes de subirla
             System.out.println("\u001B[32mComprimiendo la carpeta " + archivo.getName() + "...\u001B[0m");
-            
-            //FileOutputStream fos = new FileOutputStream(archivo.getAbsolutePath() + ".zip");
+
             
             // el archivo comprimido se guardará en el directorio actual, con el nombre de la carpeta. Una vez subido, se eliminará el zip
             FileOutputStream fos = new FileOutputStream(archivo.getName() + ".zip");
@@ -181,7 +180,7 @@ public class Cliente {
             
             //archivo = new File(archivo.getAbsolutePath() + ".zip");
             archivo = new File(archivo.getName() + ".zip");
-            System.out.println("El archivo comprimido se encuentra en " + archivo.getAbsolutePath());
+            //System.out.println("El archivo comprimido se encuentra en " + archivo.getAbsolutePath());
          }
          
          // enviar el archivo al servidor
@@ -190,6 +189,13 @@ public class Cliente {
          
          // subir el archivo al servidor
          subirArchivo(archivo);
+         
+         // eliminar el archivo si fue comprimido antes de subirlo (caso de subir una carpeta)
+         /*
+         if (archivo.getName().endsWith(".zip")) {
+            archivo.delete();
+         }
+         */
          
       } else {
          System.out.println("\u001B[31mEl archivo o carpeta no existe.\u001B[0m");
@@ -239,19 +245,23 @@ public class Cliente {
       // Enviar el numero de paquetes al servidor
       enviarMsjAServidor(String.valueOf(numPaquetes));
       
-      System.out.println("Nombre del archivo: " + nombreArchivo);
+      System.out.println("Nombre del archivo: " + "\u001B[33m" + nombreArchivo + "\u001B[0m");
       System.out.println("Tamaño del archivo: " + tamArchivo + " bytes");
-      System.out.println("Número de paquetes necesarios: " + numPaquetes);
+      System.out.println("Número de paquetes necesarios: " + "\u001B[36m" + numPaquetes + "\u001B[0m");
       
       FileInputStream fisArchivo = new FileInputStream(archivo);
       
       int numSecuencia = 1;
       int baseDeVentana = 0;
+      int acksRecibidos = 0;
       Set<Integer> manejadorACK = new HashSet<>();
       byte[] bufferPaquete = new byte[tamPaqueteDatos];
       
-      while (baseDeVentana < numPaquetes) {
-         int acksRecibidos = 0;
+      while (acksRecibidos < numPaquetes) {
+         int acksRecibidosEnVentana = 0;
+         // BackUp de los paquetes enviados
+         ByteArrayOutputStream[] backupVentana = new ByteArrayOutputStream[tamVentana];
+         
          // Enviar paquetes dentro de la ventana
          int i = 0;
          while ((i < tamVentana) && (numSecuencia < numPaquetes + 1)) {
@@ -265,40 +275,52 @@ public class Cliente {
             byte[] buffer = baos.toByteArray();
             DatagramPacket paquete = new DatagramPacket(buffer, buffer.length, direccionServidor, puertoServidor);
             socketCliente.send(paquete);
-            System.out.println("Enviado paquete " + (numSecuencia) + " de " + numPaquetes);
+            System.out.println("Enviado paquete " + "\u001B[33m" + numSecuencia + "\u001B[0m de \u001B[32m" + numPaquetes + "\u001B[0m");
             
-            // Agregar número del paquete enviado al manejador
+            // Agregar número del paquete enviado al manejador, guardar el paquete en el backup y aumentar el número de secuencia
             manejadorACK.add(numSecuencia);
+            backupVentana[i] = baos;
             numSecuencia++;
             i++;
          }
          
-         System.out.println("manejadorACK = " + manejadorACK);
+         System.out.println("Esperando los ACKs de los paquetes: " + "\u001B[34m" + manejadorACK + "\u001B[0m");
          
          // Esperar ACKs
          socketCliente.setSoTimeout(2000); // Timeout de 2 segundos
          
          try {
-            while ((acksRecibidos < tamVentana) && (baseDeVentana + acksRecibidos < numPaquetes)) {
+            while ((acksRecibidosEnVentana < tamVentana) && (baseDeVentana + acksRecibidosEnVentana < numPaquetes)) {
                byte[] bufferAck = new byte[4];
                DatagramPacket paqueteAck = new DatagramPacket(bufferAck, bufferAck.length);
                socketCliente.receive(paqueteAck);
                
                int ack = ByteBuffer.wrap(paqueteAck.getData()).getInt();
-               System.out.println("ACK recibido: " + ack);
+               System.out.println("ACK recibido: " + "\u001B[35m" + ack + "\u001B[0m");
                
-               if ((ack >= baseDeVentana + 1) && (ack < baseDeVentana + tamVentana + 1)) {
+               // Verificar si el ACK recibido está en el manejador y removerlo
+               if (manejadorACK.contains(ack)) {
+                  manejadorACK.remove(ack);
                   acksRecibidos++;
+                  acksRecibidosEnVentana++;
                }
             }
          } catch (SocketTimeoutException e) {
             System.out.println("Timeout. Reenviando paquetes...");
+            
+            // Reenviar paquetes cuyo ACK no se recibió (los que están en el manejador)
+            for (int ack : manejadorACK) {
+               ByteArrayOutputStream baos = backupVentana[ack - baseDeVentana - 1]; // restamos el 1 porque el índice empieza en 0
+               byte[] buffer = baos.toByteArray();
+               DatagramPacket paquete = new DatagramPacket(buffer, buffer.length, direccionServidor, puertoServidor);
+               socketCliente.send(paquete);
+               System.out.println("Reenviado paquete " + "\u001B[33m" + ack + "\u001B[0m de \u001B[32m" + numPaquetes + "\u001B[0m");
+            }
          }
-         
-         baseDeVentana += acksRecibidos;
+         baseDeVentana += acksRecibidosEnVentana;
       }
-      
       fisArchivo.close();
+      System.out.println("\u001B[32mArchivo subido con éxito.\u001B[0m");
    }
 
 
