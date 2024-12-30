@@ -102,7 +102,6 @@ public class Servidor {
       return datagramaRecibido;
    }
    
-   
    private void guardarArchivo(String nombreArchivo, InetAddress direccionCliente, int puertoCliente) throws IOException {
       // recibimos la ruta donde se guardará el archivo
       DatagramPacket datagramaRecibido = recibirDatagrama();
@@ -158,61 +157,9 @@ public class Servidor {
          fos.flush();
       }
       
-      // Verificar si el archivo es un .zip
-      if (nombreArchivo.endsWith(".zip")) {
-         System.out.println("El archivo recibido es un .zip. Descomprimiendo...");
-         
-         // Crear un directorio para descomprimir el contenido
-         File directorioDestino = new File(rutaCompleta + nombreArchivo.replace(".zip", ""));
-         if (!directorioDestino.exists()) {
-            directorioDestino.mkdirs();
-         }
-         
-         // Descomprimir el archivo
-         try (FileInputStream fis = new FileInputStream(rutaCompleta + nombreArchivo);
-              ZipInputStream zis = new ZipInputStream(fis)) {
-            ZipEntry entrada;
-            while ((entrada = zis.getNextEntry()) != null) {
-               File archivoExtraido = new File(directorioDestino, entrada.getName());
-               
-               // Crear directorios si es necesario
-               if (entrada.isDirectory()) {
-                  archivoExtraido.mkdirs();
-               } else {
-                  // Asegurarse de que el directorio padre exista
-                  File parent = archivoExtraido.getParentFile();
-                  if (!parent.exists()) {
-                     parent.mkdirs();
-                  }
-                  
-                  // Escribir el archivo
-                  try (FileOutputStream zipOut = new FileOutputStream(archivoExtraido)) {
-                     byte[] buffer = new byte[1024];
-                     int bytesLeidos;
-                     while ((bytesLeidos = zis.read(buffer)) > 0) {
-                        fos.write(buffer, 0, bytesLeidos);
-                     }
-                  }
-               }
-               zis.closeEntry();
-            }
-         } catch (IOException e) {
-            System.out.println("Error al descomprimir el archivo: " + e.getMessage());
-         }
-         
-         System.out.println("Archivo .zip descomprimido en: " + directorioDestino.getAbsolutePath());
-      }
-      
-      
-      
       fos.close();
    }
 
-   
-   
-   
-   
-   
    
    // Crear carpeta personal o carpetas del usuario
    // Retorna 0 si la carpeta ya existe o se crea con éxito. Retorna -1 si hay un error.

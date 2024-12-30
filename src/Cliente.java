@@ -63,7 +63,7 @@ public class Cliente {
          System.out.println("\u001B[36m2.\u001B[0m Descargar archivo");
          System.out.println("\u001B[36m3.\u001B[0m Crear carpeta");
          System.out.println("\u001B[36m4.\u001B[0m Ver archivos y carpetas");
-         System.out.println("\u001B[36m5.\u001B[0m Abrir archivo o carpeta");
+         System.out.println("\u001B[36m5.\u001B[0m Abrir carpeta");
          System.out.println("\u001B[36m6.\u001B[0m Eliminar archivo o carpeta");
          System.out.println("\u001B[36m7.\u001B[0m Renombrar archivo o carpeta");
          System.out.println("\u001B[36m8.\u001B[0m Mover archivo o carpeta");
@@ -163,71 +163,47 @@ public class Cliente {
       // C:\Users\jairo\OneDrive\Escritorio\otros\perro
       // C:\Users\jairo\OneDrive\Escritorio\otros\vacia
       
-      // verificar si la ruta es válida
+      // verificar si la ruta es válida y enviar de cierta forma el archivo o carpeta al servidor
       File archivo = new File(rutaArchivo);
       if (archivo.exists()) {
          if (archivo.isDirectory()) {
-            // comprimir la carpeta antes de subirla
-            System.out.println("\u001B[32mComprimiendo la carpeta " + archivo.getName() + "...\u001B[0m");
-
-            
-            // el archivo comprimido se guardará en el directorio actual, con el nombre de la carpeta. Una vez subido, se eliminará el zip
-            FileOutputStream fos = new FileOutputStream(archivo.getName() + ".zip");
-            ZipOutputStream zos = new ZipOutputStream(fos);
-            comprimirCarpeta(archivo, archivo.getName(), zos);
-            zos.close();
-            fos.close();
-            
-            //archivo = new File(archivo.getAbsolutePath() + ".zip");
-            archivo = new File(archivo.getName() + ".zip");
-            //System.out.println("El archivo comprimido se encuentra en " + archivo.getAbsolutePath());
+            subirCarpeta(archivo);
+         } else {
+            System.out.println("\n\u001B[32mSubiendo archivo...\u001B[0m");
+            enviarMsjAServidor("1:" + archivo.getName());
+            subirArchivo(archivo);
          }
-         
-         // enviar el archivo al servidor
-         System.out.println("\n\u001B[32mSubiendo archivo...\u001B[0m");
-         enviarMsjAServidor("1:" + archivo.getName());
-         
-         // subir el archivo al servidor
-         subirArchivo(archivo);
-         
-         // eliminar el archivo si fue comprimido antes de subirlo (caso de subir una carpeta)
-         /*
-         if (archivo.getName().endsWith(".zip")) {
-            archivo.delete();
-         }
-         */
-         
       } else {
          System.out.println("\u001B[31mEl archivo o carpeta no existe.\u001B[0m");
       }
    }
    
-   private static void comprimirCarpeta(File carpeta, String nombreBase, ZipOutputStream zos) throws IOException {
-      File[] archivos = carpeta.listFiles();
+   private void subirCarpeta(File archivo) throws IOException {
+      // Crear en el servidor la carpeta con el nombre de la carpeta a subir
+      String respaldoDirectorioActualUI = directorioActualUI;
       
-      if (archivos != null) {
-         for (File archivo : archivos) {
-            String rutaArchivo = nombreBase + "/" + archivo.getName();
-            if (archivo.isDirectory()) {
-               // Llamada recursiva para comprimir subcarpetas
-               comprimirCarpeta(archivo, rutaArchivo, zos);
-            } else {
-               // Comprimir archivo
-               try (FileInputStream fis = new FileInputStream(archivo)) {
-                  ZipEntry zipEntry = new ZipEntry(rutaArchivo);
-                  zos.putNextEntry(zipEntry);
-                  
-                  byte[] buffer = new byte[1024];
-                  int bytesLeidos;
-                  while ((bytesLeidos = fis.read(buffer)) > 0) {
-                     zos.write(buffer, 0, bytesLeidos);
-                  }
-                  
-                  zos.closeEntry();
+      enviarMsjAServidor("3:" + directorioActualUI + "/" + archivo.getName());
+      directorioActualUI += "/" + archivo.getName();
+      String respuesta = recibirMsjDeServidor();
+      
+      // si la carpeta ya existe o se creó con éxito, comenzar a subir archivos
+      if (respuesta.equals("0") || (respuesta.equals("1"))) {
+         // enlista los archivos y carpetas de la carpeta a subir
+         File[] archivos = archivo.listFiles();
+         if (archivos != null) {
+            for (File archivoEnCarpeta : archivos) {
+               if (archivoEnCarpeta.isDirectory()) {
+                  subirCarpeta(archivoEnCarpeta);
+               } else {
+                  enviarMsjAServidor("1:" + archivoEnCarpeta.getName());
+                  subirArchivo(archivoEnCarpeta);
                }
             }
          }
+      } else {
+         System.out.println("\u001B[31mError al subir la carpeta.\u001B[0m");
       }
+      directorioActualUI = respaldoDirectorioActualUI;
    }
    
    private void subirArchivo(File archivo) throws IOException {
@@ -322,7 +298,6 @@ public class Cliente {
       fisArchivo.close();
       System.out.println("\u001B[32mArchivo subido con éxito.\u001B[0m");
    }
-
 
    
    private String[] obtenerArchivosYCarpetas(String directorio) throws IOException {
