@@ -1,5 +1,8 @@
 import java.io.*;
 import java.net.*;
+import java.nio.ByteBuffer;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -152,6 +155,11 @@ public class Cliente {
       
       // rutas para pruebas, una carpeta y un archivo
       // C:\Users\jairo\OneDrive\Escritorio\otros\backgroundDel.py
+      // C:\Users\jairo\OneDrive\Escritorio\otros\perro\logo.webp
+      // C:\Users\jairo\OneDrive\Imágenes\Wallpapers\1338177.png
+      // C:\Users\jairo\Downloads\Redes de Computadoras.pdf
+      // C:\Users\jairo\OneDrive\Documentos\ADS\Tareas\Golden Rules y Heuristicas para el  interface design\Golden_Rules_y_Heuristicas_Para_UI_Design_Hervert_Martinez_Jairo_Jesus.tex
+      // C:\Users\jairo\Downloads\Proyecto_FEPI.pdf
       // C:\Users\jairo\OneDrive\Escritorio\otros\perro
       // C:\Users\jairo\OneDrive\Escritorio\otros\vacia
       
@@ -177,10 +185,11 @@ public class Cliente {
          }
          
          // enviar el archivo al servidor
-         System.out.println("\u001B[32mSubiendo el archivo " + archivo.getName() + "...\u001B[0m");
+         System.out.println("\n\u001B[32mSubiendo archivo...\u001B[0m");
          enviarMsjAServidor("1:" + archivo.getName());
          
-         
+         // subir el archivo al servidor
+         subirArchivo(archivo);
          
       } else {
          System.out.println("\u001B[31mEl archivo o carpeta no existe.\u001B[0m");
@@ -215,10 +224,73 @@ public class Cliente {
       }
    }
    
-   
-   
-   
-   
+   private void subirArchivo(File archivo) throws IOException {
+      // enviar la ruta actual del cliente al servidor para que sepa donde guardar el archivo
+      enviarMsjAServidor(directorioActualUI);
+      
+      String nombreArchivo = archivo.getName();
+      byte nombreLongitud = (byte) nombreArchivo.length();
+      long tamArchivo = archivo.length();
+      
+      byte tamVentana = 5;
+      int tamPaqueteDatos = 1400 - 4 - 1 - nombreLongitud;
+      int numPaquetes = (int) Math.ceil((double) tamArchivo / tamPaqueteDatos);
+      
+      System.out.println("Nombre del archivo: " + nombreArchivo);
+      System.out.println("Tamaño del archivo: " + tamArchivo + " bytes");
+      System.out.println("Número de paquetes necesarios: " + numPaquetes);
+      
+      FileInputStream fisArchivo = new FileInputStream(archivo);
+      
+      int numSecuencia = 0;
+      int numBase = 0;
+      byte[] bufferPaquete = new byte[tamPaqueteDatos];
+      
+      while (numBase < numPaquetes) {
+         int acksRecibidos = 0;
+         // Enviar paquetes dentro de la ventana
+         for (int i = 0; i < tamVentana && numBase + i < numPaquetes; i++) {
+            int bytesLeidos = fisArchivo.read(bufferPaquete);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            baos.write(ByteBuffer.allocate(4).putInt(numBase + i).array());
+            baos.write(nombreLongitud);
+            baos.write(nombreArchivo.getBytes());
+            baos.write(bufferPaquete, 0, bytesLeidos);
+            
+            byte[] buffer = baos.toByteArray();
+            DatagramPacket paquete = new DatagramPacket(buffer, buffer.length, direccionServidor, puertoServidor);
+            socketCliente.send(paquete);
+            System.out.println("Enviado paquete " + (numBase + i));
+         }
+         
+         // Esperar ACKs
+         long inicioEspera = System.currentTimeMillis();
+         socketCliente.setSoTimeout(2000); // Timeout de 2 segundos
+         
+         try {
+            while (acksRecibidos < tamVentana && numBase + acksRecibidos < numPaquetes) {
+               byte[] bufferAck = new byte[4];
+               DatagramPacket paqueteAck = new DatagramPacket(bufferAck, bufferAck.length);
+               socketCliente.receive(paqueteAck);
+               
+               int ack = ByteBuffer.wrap(paqueteAck.getData()).getInt();
+               System.out.println("ACK recibido: " + ack);
+               
+               if (ack >= numBase && ack < numBase + tamVentana) {
+                  acksRecibidos++;
+               }
+            }
+         } catch (SocketTimeoutException e) {
+            System.out.println("Timeout. Reenviando paquetes...");
+         }
+         
+         numBase += acksRecibidos;
+      }
+      
+      fisArchivo.close();
+   }
+
+
    
    private String[] obtenerArchivosYCarpetas(String directorio) throws IOException {
       enviarMsjAServidor("4:" + directorio);
@@ -421,9 +493,3 @@ public class Cliente {
       new Cliente().iniciarCliente();
    }
 }
-
-
-// tarea de FEPI
-// cambiar nombre de la carpeta de teams: numequipo nombre del proyecto
-// hacer el sepelling, algo asi, para ver como vendemos el proyecto, debe ser un video...
-// le podemos ir mostrando avanxces como los guiones de loq ue queremos hacefr

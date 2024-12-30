@@ -1,5 +1,8 @@
 import java.net.*;
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class Servidor {
    private int puerto = 12345; // Puerto por defecto
@@ -93,7 +96,7 @@ public class Servidor {
    }
    
    private DatagramPacket recibirDatagrama() throws IOException {
-      byte[] buffer = new byte[1024];
+      byte[] buffer = new byte[1400];
       DatagramPacket datagramaRecibido = new DatagramPacket(buffer, buffer.length);
       socketServidor.receive(datagramaRecibido);
       return datagramaRecibido;
@@ -101,10 +104,58 @@ public class Servidor {
    
    
    private String guardarArchivo(String nombreArchivo, InetAddress direccionCliente, int puertoCliente) throws IOException {
-      // Implementar lógica para guardar archivo
+      // recibimos la ruta donde se guardará el archivo
+      DatagramPacket datagramaRecibido = recibirDatagrama();
+      String ruta = new String(datagramaRecibido.getData(), 0, datagramaRecibido.getLength());
+      String rutaCompleta = directorioActual + "/" + ruta + "/";
+      
+      
       System.out.println("\u001B[35mGuardando archivo \"" + nombreArchivo + "\"...\u001B[0m");
-      return "";
+      
+      FileOutputStream fos = new FileOutputStream(rutaCompleta + nombreArchivo);
+      int ultimoNumSecuencia = -1;
+      
+      while (true) {
+         datagramaRecibido = recibirDatagrama();
+         byte[] datos = datagramaRecibido.getData();
+         int longitudDatos = datagramaRecibido.getLength();
+         
+         ByteArrayInputStream bais = new ByteArrayInputStream(datos, 0, longitudDatos);
+         DataInputStream dis = new DataInputStream(bais);
+         
+         int numSecuencia = dis.readInt();
+         byte longitudNombre = dis.readByte();
+         byte[] nombreArchivoBytes = new byte[longitudNombre];
+         dis.readFully(nombreArchivoBytes);
+         
+         String nombreArchivoRecibido = new String(nombreArchivoBytes);
+         byte[] datosArchivo = new byte[longitudDatos - 4 - 1 - longitudNombre];
+         dis.readFully(datosArchivo);
+         
+         if (numSecuencia == ultimoNumSecuencia + 1) {
+            fos.write(datosArchivo);
+            fos.flush();
+            ultimoNumSecuencia = numSecuencia;
+            
+            System.out.println("Fragmento recibido y guardado: Secuencia " + numSecuencia);
+            
+            // Enviar ACK
+            byte[] ackData = ByteBuffer.allocate(4).putInt(numSecuencia).array();
+            DatagramPacket paqueteAck = new DatagramPacket(ackData, ackData.length, direccionCliente, puertoCliente);
+            socketServidor.send(paqueteAck);
+         }
+         
+         // Verificar si es el último paquete
+         if (longitudDatos < 1400) {
+            System.out.println("\u001B[32mArchivo recibido completamente.\u001B[0m");
+            break;
+         }
+      }
+      
+      fos.close();
+      return "Archivo guardado: " + nombreArchivo;
    }
+
    
    
    
@@ -142,13 +193,6 @@ public class Servidor {
          }
       }
    }
-   
-   
-   private String guardarArchivo(String nombreArchivo) {
-      // Implementar lógica para guardar archivo
-      return "";
-   }
-   
    
    
    private String obtenerArchivosYCarpetas(String nombreCarpeta) {
