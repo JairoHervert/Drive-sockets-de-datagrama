@@ -2,9 +2,10 @@ import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
+import java.nio.file.Paths;
+import java.util.TreeMap;
 
 public class Cliente {
    private String usuario;                      // Nombre de usuario
@@ -66,9 +67,9 @@ public class Cliente {
          System.out.println("\u001B[36m5.\u001B[0m Abrir carpeta");
          System.out.println("\u001B[36m6.\u001B[0m Eliminar archivo o carpeta");
          System.out.println("\u001B[36m7.\u001B[0m Renombrar archivo o carpeta");
-         System.out.println("\u001B[36m8.\u001B[0m Mover archivo o carpeta");
-         System.out.println("\u001B[36m9.\u001B[0m Retroceder directorio");
-         System.out.println("\u001B[36m10.\u001B[0m Salir");
+         //System.out.println("\u001B[36m8.\u001B[0m Mover archivo o carpeta");
+         System.out.println("\u001B[36m8.\u001B[0m Retroceder directorio");
+         System.out.println("\u001B[36m9.\u001B[0m Salir");
          System.out.print("Selecciona una opción: ");
          
          String opcion = inputText.readLine();
@@ -78,7 +79,7 @@ public class Cliente {
                solicitarSubirArchivo();
                break;
             case "2":
-               System.out.println("descargarArchivo");
+               solicitudDescargarArchivo();
                break;
             case "3":
                solicitudCrearCarpeta();
@@ -95,18 +96,18 @@ public class Cliente {
             case "7":
                solicitudRenombrarArchivoOCarpeta();
                break;
+            //case "8":
+               //System.out.println("moveArchivoOCarpeta");
+               //break;
             case "8":
-               System.out.println("moveArchivoOCarpeta");
-               break;
-            case "9":
                retrocederDirectorio();
                break;
-            case "10":
+            case "9":
                salir();
                break;
             default:
                System.out.println("\u001B[31mOpción inválida.\u001B[0m");
-               continue;
+               break;
          }
       }
    }
@@ -157,9 +158,8 @@ public class Cliente {
       // C:\Users\jairo\OneDrive\Escritorio\otros\backgroundDel.py
       // C:\Users\jairo\OneDrive\Escritorio\otros\perro\logo.webp
       // C:\Users\jairo\OneDrive\Imágenes\Wallpapers\1338177.png
-      // C:\Users\jairo\Downloads\Redes de Computadoras.pdf
       // C:\Users\jairo\OneDrive\Documentos\ADS\Tareas\Golden Rules y Heuristicas para el  interface design\Golden_Rules_y_Heuristicas_Para_UI_Design_Hervert_Martinez_Jairo_Jesus.tex
-      // C:\Users\jairo\Downloads\Proyecto_FEPI.pdf
+      // C:\Users\jairo\Downloads\Unidad 1 Aplicaciones de comunicaciones en red.pdf
       // C:\Users\jairo\OneDrive\Escritorio\otros\perro
       // C:\Users\jairo\OneDrive\Escritorio\otros\vacia
       
@@ -218,15 +218,17 @@ public class Cliente {
       int tamPaqueteDatos = 1400 - 4 - 1 - nombreLongitud;
       int numPaquetes = (int) Math.ceil((double) tamArchivo / tamPaqueteDatos);
       
-      // Enviar el numero de paquetes al servidor
+      // Enviar el número de paquetes al servidor
       enviarMsjAServidor(String.valueOf(numPaquetes));
       
       System.out.println("Nombre del archivo: " + "\u001B[33m" + nombreArchivo + "\u001B[0m");
       System.out.println("Tamaño del archivo: " + tamArchivo + " bytes");
       System.out.println("Número de paquetes necesarios: " + "\u001B[36m" + numPaquetes + "\u001B[0m");
       
+      // Flujo de entrada para leer el archivo e ir serializando los paquetes
       FileInputStream fisArchivo = new FileInputStream(archivo);
       
+      // Variables para controlar la ventana deslizante
       int numSecuencia = 1;
       int baseDeVentana = 0;
       int acksRecibidos = 0;
@@ -282,7 +284,7 @@ public class Cliente {
                }
             }
          } catch (SocketTimeoutException e) {
-            System.out.println("Timeout. Reenviando paquetes...");
+            System.out.println("Tiempo de espera agotado. Reenviando paquetes...");
             
             // Reenviar paquetes cuyo ACK no se recibió (los que están en el manejador)
             for (int ack : manejadorACK) {
@@ -298,7 +300,136 @@ public class Cliente {
       fisArchivo.close();
       System.out.println("\u001B[32mArchivo subido con éxito.\u001B[0m");
    }
+   
+   private void solicitudDescargarArchivo() throws IOException {
+      listarArchivosYCarpetas(directorioActualUI);
+      
+      System.out.print("\nIngresa el nombre del archivo que deseas descargar: ");
+      String nombreArchivo = inputText.readLine();
+      
+      if (nombreArchivo == null || nombreArchivo.isBlank() || !nombreArchivo.matches("[a-zA-Z0-9._\\- /áéíóúÁÉÍÓÚñÑ]+")) {
+         System.out.println("\u001B[31mEl nombre del archivo no puede estar vacío y solo puede contener letras, números, guiones, guiones bajos, diagonal, espacios y puntos.\u001B[0m");
+      } else {
+         
+         enviarMsjAServidor("2:" + directorioActualUI + "/" + nombreArchivo);
+         String respuesta = recibirMsjDeServidor();   // Recibe: 0 = carpeta, 1 = archivo, -1 = no existe
+         
+         // obtenemos la ruta de descargas del sistema
+         String userHome = System.getProperty("user.home");
+         String rutaDescarga = Paths.get(userHome, "Downloads").toString();
+         
+         // si la carpeta de descargas no existe, se crea una auxiliar dentro del directorio actual
+         File carpetaDescarga = new File(rutaDescarga);
+         if (!carpetaDescarga.exists()) {
+            String rutaActual = System.getProperty("user.dir") + "/" + "Descargas";
+            carpetaDescarga = new File(rutaActual);
+            carpetaDescarga.mkdir();
+         }
+         
+         switch (respuesta) {
+            case "0":
+               descargarCarpeta(nombreArchivo, rutaDescarga);
+               break;
+            case "1":
+               descargarArchivo(nombreArchivo, rutaDescarga);
+               break;
+            default:
+               System.out.println("\u001B[31mEl archivo " + nombreArchivo + " no existe.\u001B[0m");
+               break;
+         }
+      }
+   }
+   
+   private DatagramPacket recibirDatagrama() throws IOException {
+      byte[] buffer = new byte[1400];
+      DatagramPacket datagramaRecibido = new DatagramPacket(buffer, buffer.length);
+      socketCliente.receive(datagramaRecibido);
+      return datagramaRecibido;
+   }
+   
+   private void descargarArchivo(String nombreArchivo, String rutaDescarga) throws IOException {
+      
+      // Recibir el número de paquetes que se enviarán
+      DatagramPacket datagramaRecibido = recibirDatagrama();
+      int numPaquetes = Integer.parseInt(new String(datagramaRecibido.getData(), 0, datagramaRecibido.getLength()));
+      System.out.println("Número de paquetes a recibir: " + numPaquetes);
+      
+      System.out.println("Descargando archivo...");
+      
+      FileOutputStream archivoGuardado = new FileOutputStream(rutaDescarga + "/" + nombreArchivo);
+      TreeMap<Integer, byte[]> fragmentosDelArchivo = new TreeMap<>();
+      
+      while (true) {
+         datagramaRecibido = recibirDatagrama();
+         byte[] datos = datagramaRecibido.getData();
+         int longitudDatos = datagramaRecibido.getLength();
+         
+         ByteArrayInputStream bais = new ByteArrayInputStream(datos, 0, longitudDatos);
+         DataInputStream dis = new DataInputStream(bais);
+         
+         int numSecuencia = dis.readInt();
+         byte longitudNombre = dis.readByte();
+         byte[] nombreArchivoBytes = new byte[longitudNombre];
+         dis.readFully(nombreArchivoBytes);
+         
+         String nombreArchivoRecibido = new String(nombreArchivoBytes);
+         byte[] datosArchivo = new byte[longitudDatos - 4 - 1 - longitudNombre];
+         dis.readFully(datosArchivo);
+         
+         System.out.println("Fragmento recibido: " + "\u001B[33m" + numSecuencia + "\u001B[0m de \u001B[32m" + numPaquetes + "\u001B[0m");
+         
+         // Agregamos los fragmentos del archivo al TreeMap para ordenarlos (al final se unirán)
+         fragmentosDelArchivo.put(numSecuencia, datosArchivo);
+         
+         // Enviar ACK al servidor
+         byte[] ackData = ByteBuffer.allocate(4).putInt(numSecuencia).array();
+         DatagramPacket paqueteAck = new DatagramPacket(ackData, ackData.length, datagramaRecibido.getAddress(), datagramaRecibido.getPort());
+         socketCliente.send(paqueteAck);
+         
+         // Verificar si es el último paquete (se recibieron todos los fragmentos)
+         if (fragmentosDelArchivo.size() == numPaquetes) {
+            System.out.println("\u001B[32mArchivo guardado con éxito.\u001B[0m");
+            break;
+         }
+         
+      }
+      
+      // Unir los fragmentos del archivo
+      for (Map.Entry<Integer, byte[]> fragmento : fragmentosDelArchivo.entrySet()) {
+         archivoGuardado.write(fragmento.getValue());
+         archivoGuardado.flush();
+      }
+      //System.out.println("Ensamblee los fragmentos del archivo.");
+      
+      archivoGuardado.close();
+      
+      //System.out.println("Voy a salir de descargarArchivo");
 
+   }
+   
+   private void descargarCarpeta (String nombreCarpeta, String rutaDescarga) throws IOException {
+      // Crear la carpeta en la ruta de descarga
+      File carpetaDescarga = new File(rutaDescarga + "/" + nombreCarpeta);
+      carpetaDescarga.mkdir();
+      
+      // Recibir del servidor la lista de archivos y carpetas de la carpeta
+      DatagramPacket datagramaRecibido = recibirDatagrama();
+      String listaArchivosYCarpetas = new String(datagramaRecibido.getData(), 0, datagramaRecibido.getLength());
+      String[] archivosYCarpetas = listaArchivosYCarpetas.split("\n");
+      
+      // Si la carpeta no está vacía, descargar los archivos y carpetas que contiene
+      if (!archivosYCarpetas[0].isEmpty()) {
+         System.out.println("\nArchivos y carpetas en la carpeta " + nombreCarpeta + ":");
+         for (String archivoOCarpeta : archivosYCarpetas) {
+            System.out.println("archivoOCarpeta = " + archivoOCarpeta);
+            if (archivoOCarpeta.charAt(archivoOCarpeta.length() - 1) != '/') {
+               descargarArchivo(archivoOCarpeta, carpetaDescarga.getPath());
+            } else {
+               descargarCarpeta(archivoOCarpeta.substring(0, archivoOCarpeta.length() - 1), carpetaDescarga.getPath());
+            }
+         }
+      }
+   }
    
    private String[] obtenerArchivosYCarpetas(String directorio) throws IOException {
       enviarMsjAServidor("4:" + directorio);
